@@ -6,14 +6,19 @@ import {
 } from "@ant-design/icons";
 import { useEffect, useState } from "react";
 import { fetchDashboard } from "../api";
-import { BarChart, LineChart, PieChart } from "../components/charts";
+import {
+  CourseCategoryChart,
+  CourseEnrollmentChart,
+  LearningActivityChart,
+  StudentStatusChart,
+} from "../components/echarts";
 import { EmptyState, PanelLoading } from "../components/feedback";
 import { Card, StatCard } from "../components/ui";
 import type { DashboardData } from "../types";
 import { appErrorMessage, formatPercent } from "../utils/text";
 
 const chartPanelClass =
-  "rounded-[18px] border-[4px] border-dashed border-slate-300 bg-[repeating-linear-gradient(135deg,#ffffff_0,#ffffff_18px,#f7f4ef_18px,#f7f4ef_30px)] px-4 py-3";
+  "rounded-4.5 border-4 border-dashed border-slate-300 bg-[repeating-linear-gradient(135deg,#ffffff_0,#ffffff_18px,#f7f4ef_18px,#f7f4ef_30px)] px-4 py-3";
 
 export function DashboardPage({
   setGlobalError,
@@ -66,7 +71,7 @@ export function DashboardPage({
 
   return (
     <div className="w-full space-y-7">
-      <h2 className="m-0 text-[32px] font-extrabold text-slate-900">工作台</h2>
+      <h2 className="m-0 text-4xl font-extrabold text-slate-900">工作台</h2>
 
       <section className="grid gap-5 md:grid-cols-2 xl:grid-cols-4">
         <StatCard
@@ -98,22 +103,22 @@ export function DashboardPage({
       <section className="grid gap-5 xl:grid-cols-2">
         <Card title="课程选课人数 TOP 8">
           <div className={chartPanelClass}>
-            <BarChart items={data.charts.enrollment.slice(0, 8)} />
+            <CourseEnrollmentChart items={data.charts.enrollment.slice(0, 8)} />
           </div>
         </Card>
         <Card title="近 7 天学习活跃度">
           <div className={chartPanelClass}>
-            <LineChart items={data.charts.activity} />
+            <LearningActivityChart items={data.charts.activity} />
           </div>
         </Card>
         <Card title="学生状态分布">
           <div className={chartPanelClass}>
-            <PieChart items={data.charts.statusDist} />
+            <StudentStatusChart items={data.charts.statusDist} />
           </div>
         </Card>
         <Card title="课程分类分布">
           <div className={chartPanelClass}>
-            <PieChart items={topCategoryItems} />
+            <CourseCategoryChart items={topCategoryItems} />
           </div>
         </Card>
       </section>

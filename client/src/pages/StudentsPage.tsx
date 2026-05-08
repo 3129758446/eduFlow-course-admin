@@ -266,7 +266,7 @@ export function StudentsPage({
             : "未选课程";
           return (
             <div 
-              className="text-[15px] text-slate-700 w-full whitespace-nowrap overflow-hidden text-ellipsis"
+              className="text-base text-slate-700 w-full whitespace-nowrap overflow-hidden text-ellipsis"
               title={selectedCourses}
             >{selectedCourses}</div>
           );
@@ -328,14 +328,14 @@ export function StudentsPage({
   return (
     <div className="w-full space-y-6">
       <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-        <h2 className="m-0 text-[32px] font-extrabold text-slate-900">
+        <h2 className="m-0 text-4xl font-extrabold text-slate-900">
           学生管理
         </h2>
         <Button
           type="primary"
           icon={<PlusOutlined />}
           onClick={openCreate}
-          className="manage-action-button bg-sky-200 text-[18px] font-bold text-slate-900"
+          className="manage-action-button bg-sky-200 text-lg font-bold text-slate-900"
         >
           新增学生
         </Button>
@@ -356,7 +356,7 @@ export function StudentsPage({
                 page: 1,
               }))
             }
-            className="w-75! rounded-[14px]! border-4! border-slate-300!"
+            className="w-75! rounded-3.5! border-4! border-slate-300!"
             style={{ height: "57px", padding: "0 16px" }}
           />
           <Select
@@ -364,7 +364,7 @@ export function StudentsPage({
             value={query.className || undefined}
             placeholder="全部班级"
             allowClear
-            className="w-45! rounded-[14px]! border-4! border-slate-300!"
+            className="w-45! rounded-3.5! border-4! border-slate-300!"
             onChange={(value) =>
               updateQuery((prev) => ({
                 ...prev,
@@ -382,7 +382,7 @@ export function StudentsPage({
             value={query.status || undefined}
             placeholder="全部状态"
             allowClear
-            className="w-45! rounded-[14px]! border-4! border-slate-300!"
+            className="w-45! rounded-3.5! border-4! border-slate-300!"
             onChange={(value) =>
               updateQuery((prev) => ({ ...prev, status: value ?? "", page: 1 }))
             }
@@ -401,14 +401,14 @@ export function StudentsPage({
                 page: 1,
               }))
             }
-            className="w-25! rounded-[14px]! border-4! border-slate-900! text-slate-900! hover:border-[#222]! hover:text-slate-900!"
+            className="w-25! rounded-3.5! border-4! border-slate-900! text-slate-900! hover:border-[#222]! hover:text-slate-900!"
           >
             搜索
           </Button>
           <Button
             size="large"
             onClick={resetFilters}
-           className="w-25! rounded-[14px]! border-4! border-slate-900! text-slate-900! hover:border-[#222]! hover:text-slate-900!"
+           className="w-25! rounded-3.5! border-4! border-slate-900! text-slate-900! hover:border-[#222]! hover:text-slate-900!"
           >
             重置
           </Button>
@@ -480,7 +480,7 @@ export function StudentsPage({
                   value: className,
                   label: parseMaybeChinese(className),
                 }))}
-                className="w-full rounded-[14px]! border-4!"
+                className="w-full rounded-3.5! border-4!"
               />
             </Form.Item>
             <Form.Item label="状态" name="status">
@@ -489,7 +489,7 @@ export function StudentsPage({
                   { value: "active", label: "活跃" },
                   { value: "inactive", label: "非活跃" },
                 ]}
-                className="w-full rounded-[14px]! border-4!"
+                className="w-full rounded-3.5! border-4!"
               />
             </Form.Item>
             <Form.Item label="手机号" name="phone">
@@ -499,11 +499,11 @@ export function StudentsPage({
               <Input placeholder="请输入邮箱" />
             </Form.Item>
             <Form.Item label="课程" name="course_ids" className="md:col-span-2">
-              <Checkbox.Group className="manage-checkbox-group grid gap-3 rounded-[18px] border-dashed border-slate-300 p-5 md:grid-cols-3">
+              <Checkbox.Group className="manage-checkbox-group grid gap-3 rounded-4.5 border-dashed border-slate-300 p-5 md:grid-cols-3">
                 {courses.map((course) => (
                   <label
                     key={course.id}
-                    className="flex items-start gap-3 text-[15px] leading-7 text-slate-800"
+                    className="flex items-start gap-3 text-base leading-7 text-slate-800"
                   >
                     <Checkbox value={course.id} />
                     <span>{parseMaybeChinese(course.name)}</span>

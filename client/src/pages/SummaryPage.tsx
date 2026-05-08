@@ -44,7 +44,7 @@ export function SummaryPage({
 
   return (
     <div className="w-full space-y-6">
-      <h2 className="m-0 text-[32px] font-extrabold text-slate-900">
+      <h2 className="m-0 text-4xl font-extrabold text-slate-900">
         学习总结
       </h2>
       <Card title="" className="summary-card border-4! border-[#222]!">

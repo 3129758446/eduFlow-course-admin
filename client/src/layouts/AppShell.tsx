@@ -81,8 +81,8 @@ export function AppShell({
         <div className="flex h-full flex-col px-3 py-5">
           <div className="border-b-4 border-[#222] px-3 pb-4">
             <div className="flex items-center gap-3 text-slate-900">
-              <span className="text-[32px]">🎓</span>
-              <span className="m-0 text-[30px] font-extrabold tracking-tight">
+              <span className="text-4xl">🎓</span>
+              <span className="m-0 text-3xl font-extrabold tracking-tight">
                 学习管理平台
               </span>
             </div>
@@ -97,7 +97,7 @@ export function AppShell({
               label: item.label,
               onClick: () => onNavigate(item.key),
             }))}
-            className="app-nav-menu mt-6 border-0 bg-transparent text-[18px] [&_.ant-menu-item]:mb-4 [&_.ant-menu-item]:h-26 [&_.ant-menu-item]:rounded-[20px] [&_.ant-menu-item]:px-9 [&_.ant-menu-item]:leading-26 [&_.ant-menu-item-selected]:border-4 [&_.ant-menu-item-selected]:border-sky-500 [&_.ant-menu-item-selected]:bg-[#d9e9ff] [&_.ant-menu-item-icon]:mr-4 [&_.ant-menu-item-icon]:text-[38px] [&_.ant-menu-title-content]:text-[29px] [&_.ant-menu-title-content]:font-extrabold"
+            className="app-nav-menu mt-6 border-0 bg-transparent text-lg [&_.ant-menu-item]:mb-4 [&_.ant-menu-item]:h-26 [&_.ant-menu-item]:rounded-5 [&_.ant-menu-item]:px-9 [&_.ant-menu-item]:leading-26 [&_.ant-menu-item-selected]:border-4 [&_.ant-menu-item-selected]:border-sky-500 [&_.ant-menu-item-selected]:bg-[#d9e9ff] [&_.ant-menu-item-icon]:mr-4 [&_.ant-menu-item-icon]:text-4xl [&_.ant-menu-title-content]:text-3xl [&_.ant-menu-title-content]:font-extrabold"
           />
         </div>
       </Sider>
@@ -118,7 +118,7 @@ export function AppShell({
               icon={<MenuOutlined />}
               aria-label={siderCollapsed ? "展开侧边栏" : "收起侧边栏"}
               onClick={() => setSiderCollapsed((collapsed) => !collapsed)}
-              className="h-auto border-0 p-0 text-[28px] text-slate-700 shadow-none hover:bg-transparent! hover:text-slate-900!"
+              className="h-auto border-0 p-0 text-3xl text-slate-700 shadow-none hover:bg-transparent! hover:text-slate-900!"
             />
 
             <Popconfirm
@@ -148,14 +148,14 @@ export function AppShell({
               >
                 <Button
                   type="text"
-                  className="h-auto border-0 px-0 text-[18px] font-medium text-slate-800 shadow-none hover:bg-transparent! hover:text-slate-900!"
+                  className="h-auto border-0 px-0 text-lg font-medium text-slate-800 shadow-none hover:bg-transparent! hover:text-slate-900!"
                 >
                   <span className="inline-flex items-center gap-2.5">
-                    <UserOutlined className="text-[24px] text-violet-800" />
-                    <span className="text-[20px] font-bold">
+                    <UserOutlined className="text-2xl text-violet-800" />
+                    <span className="text-xl font-bold">
                       {parseMaybeChinese(user.name || user.username || "管理员")}
                     </span>
-                    <DownOutlined className="text-[12px]" />
+                    <DownOutlined className="text-xs" />
                   </span>
                 </Button>
               </Dropdown>
@@ -174,7 +174,7 @@ export function AppShell({
               message={error}
               type="error"
               showIcon
-              className="mb-5 rounded-2xl border-[3px] border-rose-300"
+              className="mb-5 rounded-2xl border-3 border-rose-300"
             />
           ) : null}
           <div className="w-full min-w-0">{children}</div>

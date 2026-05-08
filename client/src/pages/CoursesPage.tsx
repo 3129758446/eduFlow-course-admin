@@ -246,7 +246,7 @@ export function CoursesPage({
       {
         title: (
           <button
-            className="inline-flex items-center gap-1 text-[18px] font-extrabold text-slate-900"
+            className="inline-flex items-center gap-1 text-lg font-extrabold text-slate-900"
             onClick={() =>
               updateQuery((prev) => {
                 const nextOrder =
@@ -350,14 +350,14 @@ export function CoursesPage({
   return (
     <div className="w-full space-y-6">
       <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-        <h2 className="m-0 text-[32px] font-extrabold text-slate-900">
+        <h2 className="m-0 text-4xl font-extrabold text-slate-900">
           课程管理
         </h2>
         <Button
           type="primary"
           icon={<PlusOutlined />}
           onClick={openCreate}
-          className="manage-action-button bg-sky-200 text-[18px] font-bold text-slate-900"
+          className="manage-action-button bg-sky-200 text-lg font-bold text-slate-900"
         >
           新增课程
         </Button>
@@ -378,7 +378,7 @@ export function CoursesPage({
                 page: 1,
               }))
             }
-            className="w-75! rounded-[14px]! border-4! border-slate-300!"
+            className="w-75! rounded-3.5! border-4! border-slate-300!"
             style={{ height: "57px", padding: "0 16px" }}
           />
           <Select
@@ -386,7 +386,7 @@ export function CoursesPage({
             value={query.status || undefined}
             placeholder="全部状态"
             allowClear
-            className="w-45! rounded-[14px]! border-4! border-slate-300!"
+            className="w-45! rounded-3.5! border-4! border-slate-300!"
             onChange={(value) =>
               updateQuery((prev) => ({ ...prev, status: value ?? "", page: 1 }))
             }
@@ -400,7 +400,7 @@ export function CoursesPage({
             value={query.category || undefined}
             placeholder="全部分类"
             allowClear
-            className="w-45! rounded-[14px]! border-4! border-slate-300!"
+            className="w-45! rounded-3.5! border-4! border-slate-300!"
             onChange={(value) =>
               updateQuery((prev) => ({
                 ...prev,
@@ -423,14 +423,14 @@ export function CoursesPage({
                 page: 1,
               }))
             }
-            className="w-25! rounded-[14px]! border-4! border-slate-900! text-slate-900! hover:border-[#222]! hover:text-slate-900!"
+            className="w-25! rounded-3.5! border-4! border-slate-900! text-slate-900! hover:border-[#222]! hover:text-slate-900!"
           >
             搜索
           </Button>
           <Button
             size="large"
             onClick={resetFilters}
-            className="w-25! rounded-[14px]! border-4! border-slate-900! text-slate-900! hover:border-[#222]! hover:text-slate-900!"
+            className="w-25! rounded-3.5! border-4! border-slate-900! text-slate-900! hover:border-[#222]! hover:text-slate-900!"
           >
             重置
           </Button>
@@ -497,7 +497,7 @@ export function CoursesPage({
             </Form.Item>
             <Form.Item label="分类" name="category">
               <Select
-                className="manage-form-select w-full! rounded-[14px]! border-4! "
+                className="manage-form-select w-full! rounded-3.5! border-4! "
                 placeholder="请选择课程分类"
                 options={categories.map((category) => ({
                   value: category,
@@ -510,7 +510,7 @@ export function CoursesPage({
             </Form.Item>
             <Form.Item label="状态" name="status">
               <Select
-                className="manage-form-select w-full! rounded-[14px]! border-4! "
+                className="manage-form-select w-full! rounded-3.5! border-4! "
                 placeholder="请选择课程状态"
                 options={[
                   { value: "draft", label: "草稿" },
