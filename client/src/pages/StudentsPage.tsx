@@ -20,6 +20,7 @@ import type { ColumnsType } from "antd/es/table";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   createStudent,
+  checkStudentNoUnique,
   deleteStudent,
   fetchClasses,
   fetchCourses,
@@ -59,6 +60,7 @@ export function StudentsPage({
   const [formOpen, setFormOpen] = useState(false);
   const [editingId, setEditingId] = useState<number | null>(null);
   const [formLoading, setFormLoading] = useState(false);
+  const [deletingId, setDeletingId] = useState<number | null>(null);
   const [form] = Form.useForm<StudentFormValue>();
 
   const courseNameMap = useMemo(
@@ -172,7 +174,11 @@ export function StudentsPage({
       await refreshList();
     } catch (error) {
       if (error instanceof Error) {
-        setGlobalError(appErrorMessage(error));
+        const message = appErrorMessage(error);
+        if (message.includes("学号已存在")) {
+          form.setFields([{ name: "student_no", errors: [message] }]);
+        }
+        setGlobalError(message);
       }
     } finally {
       setFormLoading(false);
@@ -192,6 +198,7 @@ export function StudentsPage({
 
   const handleDeleteStudent = useCallback(
     async (id: number) => {
+      setDeletingId(id);
       try {
         await deleteStudent(id);
 
@@ -209,6 +216,8 @@ export function StudentsPage({
         await refreshList();
       } catch (error) {
         setGlobalError(appErrorMessage(error));
+      } finally {
+        setDeletingId(null);
       }
     },
     [data?.total, query.page, query.pageSize, refreshList, setGlobalError],
@@ -306,6 +315,7 @@ export function StudentsPage({
               onConfirm={async () => {
                 await handleDeleteStudent(student.id);
               }}
+              okButtonProps={{ loading: deletingId === student.id }}
               okText="确认"
               cancelText="取消"
             >
@@ -314,6 +324,7 @@ export function StudentsPage({
                 type="link"
                 className="list-action list-action--danger"
                 icon={<DeleteOutlined />}
+                loading={deletingId === student.id}
               >
                 删除
               </Button>
@@ -322,7 +333,7 @@ export function StudentsPage({
         ),
       },
     ],
-    [courseNameMap, handleDeleteStudent, openEdit],
+    [courseNameMap, deletingId, handleDeleteStudent, openEdit],
   );
 
   return (
@@ -458,7 +469,11 @@ export function StudentsPage({
             <Form.Item
               label="姓名"
               name="name"
-              rules={[{ required: true, message: "请输入姓名" }]}
+              rules={[
+                { required: true, message: "请输入姓名" },
+                { whitespace: true, message: "姓名不能只包含空格" },
+                { max: 20, message: "姓名不能超过 20 个字符" },
+              ]}
             >
               <Input placeholder="请输入姓名" />
             </Form.Item>
@@ -466,14 +481,31 @@ export function StudentsPage({
             <Form.Item
               label="学号"
               name="student_no"
-              rules={[{ required: true, message: "请输入学号" }]}
+              validateTrigger="onBlur"
+              rules={[
+                { required: true, message: "请输入学号" },
+                { pattern: /^\d{8}$/, message: "学号格式应为 8 位数字" },
+                {
+                  validator: async (_, value?: string) => {
+                    const studentNo = value?.trim();
+                    if (!studentNo || !/^\d{8}$/.test(studentNo)) return;
+
+                    const result = await checkStudentNoUnique(studentNo, editingId ?? undefined);
+                    if (!result.unique) {
+                      throw new Error("学号已存在");
+                    }
+                  },
+                },
+              ]}
             >
               <Input placeholder="请输入学号" />
             </Form.Item>
 
-            <Form.Item label="班级"
-             name="class_name"
-             >
+            <Form.Item
+              label="班级"
+              name="class_name"
+              rules={[{ required: true, message: "请选择班级" }]}
+            >
               <Select
                 placeholder="请选择班级"
                 options={classes.map((className) => ({
@@ -483,7 +515,11 @@ export function StudentsPage({
                 className="w-full rounded-3.5! border-4!"
               />
             </Form.Item>
-            <Form.Item label="状态" name="status">
+            <Form.Item
+              label="状态"
+              name="status"
+              rules={[{ required: true, message: "请选择状态" }]}
+            >
               <Select
                 options={[
                   { value: "active", label: "活跃" },
@@ -492,13 +528,39 @@ export function StudentsPage({
                 className="w-full rounded-3.5! border-4!"
               />
             </Form.Item>
-            <Form.Item label="手机号" name="phone">
+            <Form.Item
+              label="手机号"
+              name="phone"
+              rules={[
+                { required: true, message: "请输入手机号" },
+                { pattern: /^1[3-9]\d{9}$/, message: "请输入正确的 11 位手机号" },
+              ]}
+            >
               <Input placeholder="请输入手机号" />
             </Form.Item>
-            <Form.Item label="邮箱" name="email">
+            <Form.Item
+              label="邮箱"
+              name="email"
+              rules={[
+                { required: true, message: "请输入邮箱" },
+                { type: "email", message: "请输入正确的邮箱地址" },
+              ]}
+            >
               <Input placeholder="请输入邮箱" />
             </Form.Item>
-            <Form.Item label="课程" name="course_ids" className="md:col-span-2">
+            <Form.Item
+              label="课程"
+              name="course_ids"
+              className="md:col-span-2"
+              rules={[
+                {
+                  validator: (_, value?: number[]) =>
+                    value?.length
+                      ? Promise.resolve()
+                      : Promise.reject(new Error("请至少选择一门课程")),
+                },
+              ]}
+            >
               <Checkbox.Group className="manage-checkbox-group grid gap-3 rounded-4.5 border-dashed border-slate-300 p-5 md:grid-cols-3">
                 {courses.map((course) => (
                   <label

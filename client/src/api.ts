@@ -92,6 +92,21 @@ export function fetchClasses() {
   return request<string[]>({ url: '/students/classes' });
 }
 
+export function checkStudentNoUnique(studentNo: string, excludeId?: number) {
+  return fetchStudents({
+    keyword: studentNo,
+    className: '',
+    status: '',
+    page: 1,
+    pageSize: 1000,
+  }).then((result) => {
+    const duplicated = result.list.some(
+      (student) => student.student_no === studentNo && student.id !== excludeId,
+    );
+    return { unique: !duplicated };
+  });
+}
+
 export function fetchStudentDetail(id: number) {
   return request<StudentDetail>({ url: `/students/${id}` });
 }

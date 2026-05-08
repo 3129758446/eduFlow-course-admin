@@ -50,6 +50,21 @@ router.get('/classes', authenticateToken, async (ctx) => {
   success(ctx, classes);
 });
 
+router.get('/check-no', authenticateToken, async (ctx) => {
+  const studentNo = normalizeText(ctx.query.student_no);
+  const excludeId = Number(ctx.query.excludeId || 0);
+
+  if (!studentNo) {
+    return fail(ctx, 400, '学号不能为空');
+  }
+
+  const existing = excludeId > 0
+    ? db.prepare('SELECT id FROM students WHERE student_no = ? AND id != ?').get(studentNo, excludeId)
+    : db.prepare('SELECT id FROM students WHERE student_no = ?').get(studentNo);
+
+  success(ctx, { unique: !existing });
+});
+
 router.get('/:id', authenticateToken, async (ctx) => {
   const student = db.prepare('SELECT * FROM students WHERE id = ?').get(ctx.params.id);
   if (!student) {
@@ -195,8 +210,20 @@ function parseStudentPayload(body = {}, existing = null) {
   if (!payload.student_no) {
     return { error: '学号不能为空' };
   }
+  if (!/^\d{8}$/.test(payload.student_no)) {
+    return { error: '学号格式应为 8 位数字' };
+  }
+  if (!/^1[3-9]\d{9}$/.test(payload.phone)) {
+    return { error: '手机号格式不正确' };
+  }
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(payload.email)) {
+    return { error: '邮箱格式不正确' };
+  }
   if (!['active', 'inactive'].includes(payload.status)) {
     return { error: '学生状态不合法' };
+  }
+  if (payload.course_ids.length === 0) {
+    return { error: '请至少选择一门课程' };
   }
 
   return payload;
