@@ -4,8 +4,8 @@ import {
   LineChartOutlined,
   TeamOutlined,
 } from "@ant-design/icons";
-import { useEffect, useState } from "react";
-import { fetchDashboard } from "../api";
+import { useEffect } from "react";
+import { useShallow } from "zustand/react/shallow";
 import {
   CourseCategoryChart,
   CourseEnrollmentChart,
@@ -14,39 +14,24 @@ import {
 } from "../components/echarts";
 import { EmptyState, PanelLoading } from "../components/feedback";
 import { Card, StatCard } from "../components/ui";
-import type { DashboardData } from "../types";
-import { appErrorMessage, formatPercent } from "../utils/text";
+import { useDashboardStore } from "../stores/dashboard-store";
+import { formatPercent } from "../utils/text";
 
 const chartPanelClass =
   "rounded-4.5 border-4 border-dashed border-slate-300 bg-[repeating-linear-gradient(135deg,#ffffff_0,#ffffff_18px,#f7f4ef_18px,#f7f4ef_30px)] px-4 py-3";
 
-export function DashboardPage({
-  setGlobalError,
-}: {
-  setGlobalError: (value: string) => void;
-}) {
-  const [data, setData] = useState<DashboardData | null>(null);
-  const [loading, setLoading] = useState(true);
+export function DashboardPage() {
+  const { data, loading, refresh } = useDashboardStore(
+    useShallow((state) => ({
+      data: state.data,
+      loading: state.loading,
+      refresh: state.refresh,
+    }))
+  );
 
   useEffect(() => {
-    let active = true;
-    fetchDashboard()
-      .then((result) => {
-        if (!active) return;
-        setData(result);
-        setGlobalError("");
-      })
-      .catch((error) => {
-        if (active) setGlobalError(appErrorMessage(error));
-      })
-      .finally(() => {
-        if (active) setLoading(false);
-      });
-
-    return () => {
-      active = false;
-    };
-  }, [setGlobalError]);
+    void refresh();
+  }, [refresh]);
 
   if (loading && !data) {
     return <PanelLoading text="正在加载工作台数据..." />;

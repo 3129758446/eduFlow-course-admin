@@ -1,38 +1,22 @@
-import { useEffect, useState } from "react";
-import { fetchSummary } from "../api";
+import { useEffect } from "react";
+import { useShallow } from "zustand/react/shallow";
 import { EmptyState, PanelLoading } from "../components/feedback";
 import { Card } from "../components/ui";
 import { MarkdownRenderer } from "../markdown";
-import type { SummaryData } from "../types";
-import { appErrorMessage } from "../utils/text";
+import { useSummaryStore } from "../stores/summary-store";
 
-export function SummaryPage({
-  setGlobalError,
-}: {
-  setGlobalError: (value: string) => void;
-}) {
-  const [data, setData] = useState<SummaryData | null>(null);
-  const [loading, setLoading] = useState(true);
+export function SummaryPage() {
+  const { data, loading, refresh } = useSummaryStore(
+    useShallow((state) => ({
+      data: state.data,
+      loading: state.loading,
+      refresh: state.refresh,
+    }))
+  );
 
   useEffect(() => {
-    let active = true;
-    fetchSummary()
-      .then((result) => {
-        if (!active) return;
-        setData(result);
-        setGlobalError("");
-      })
-      .catch((error) => {
-        if (active) setGlobalError(appErrorMessage(error));
-      })
-      .finally(() => {
-        if (active) setLoading(false);
-      });
-
-    return () => {
-      active = false;
-    };
-  }, [setGlobalError]);
+    void refresh();
+  }, [refresh]);
 
   if (loading && !data) {
     return <PanelLoading text="正在加载学习总结..." />;

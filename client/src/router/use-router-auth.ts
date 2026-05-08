@@ -1,10 +1,17 @@
-import { useContext } from 'react';
-import { AuthContext } from './auth-shared';
+import { useShallow } from 'zustand/react/shallow';
+import { useAuthStore } from '../stores/auth-store';
 
 export function useRouterAuth() {
-  const context = useContext(AuthContext);
-  if (!context) {
-    throw new Error('useRouterAuth must be used within RouterAuthProvider');
-  }
-  return context;
+  return useAuthStore(
+    useShallow((state) => ({
+      authLoading: state.authLoading,
+      initialized: state.initialized,
+      token: state.token,
+      user: state.user,
+      globalError: state.globalError,
+      setGlobalError: state.setGlobalError,
+      handleLogin: state.handleLogin,
+      handleLogout: state.handleLogout,
+    }))
+  );
 }

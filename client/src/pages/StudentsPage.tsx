@@ -17,51 +17,62 @@ import {
   Tag,
 } from "antd";
 import type { ColumnsType } from "antd/es/table";
-import { useCallback, useEffect, useMemo, useState } from "react";
-import {
-  createStudent,
-  checkStudentNoUnique,
-  deleteStudent,
-  fetchClasses,
-  fetchCourses,
-  fetchStudentDetail,
-  fetchStudents,
-  updateStudent,
-} from "../api";
+import { useEffect, useMemo } from "react";
+import { useShallow } from "zustand/react/shallow";
+import { checkStudentNoUnique } from "../api";
 import { DEFAULT_STUDENT_FORM, STUDENT_STATUS_TEXT } from "../constants";
 import { Card, PaginationBar } from "../components/ui";
-import type {
-  Course,
-  Student,
-  StudentFormValue,
-  StudentListResponse,
-  StudentQuery,
-} from "../types";
-import { pageAfterDelete } from "../utils/pagination";
+import { useAuthStore } from "../stores/auth-store";
+import { useStudentStore } from "../stores/student-store";
+import type { Student, StudentFormValue } from "../types";
 import { appErrorMessage, parseMaybeChinese } from "../utils/text";
 
-export function StudentsPage({
-  setGlobalError,
-}: {
-  setGlobalError: (value: string) => void;
-}) {
-  const [data, setData] = useState<StudentListResponse | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [classes, setClasses] = useState<string[]>([]);
-  const [courses, setCourses] = useState<Course[]>([]);
-  const [query, setQuery] = useState<StudentQuery>({
-    keyword: "",
-    className: "",
-    status: "",
-    page: 1,
-    pageSize: 10,
-  });
-  const [draftKeyword, setDraftKeyword] = useState("");
-  const [formOpen, setFormOpen] = useState(false);
-  const [editingId, setEditingId] = useState<number | null>(null);
-  const [formLoading, setFormLoading] = useState(false);
-  const [deletingId, setDeletingId] = useState<number | null>(null);
+export function StudentsPage() {
   const [form] = Form.useForm<StudentFormValue>();
+  const setGlobalError = useAuthStore((state) => state.setGlobalError);
+  const {
+    data,
+    loading,
+    classes,
+    courses,
+    query,
+    draftKeyword,
+    formOpen,
+    editingId,
+    formLoading,
+    deletingId,
+    setDraftKeyword,
+    initializePage,
+    updateQuery,
+    resetFilters,
+    openCreate,
+    openEdit,
+    closeForm,
+    submitForm,
+    deleteStudentById,
+  } = useStudentStore(
+    useShallow((state) => ({
+      data: state.data,
+      loading: state.loading,
+      classes: state.classes,
+      courses: state.courses,
+      query: state.query,
+      draftKeyword: state.draftKeyword,
+      formOpen: state.formOpen,
+      editingId: state.editingId,
+      formLoading: state.formLoading,
+      deletingId: state.deletingId,
+      setDraftKeyword: state.setDraftKeyword,
+      initializePage: state.initializePage,
+      updateQuery: state.updateQuery,
+      resetFilters: state.resetFilters,
+      openCreate: state.openCreate,
+      openEdit: state.openEdit,
+      closeForm: state.closeForm,
+      submitForm: state.submitForm,
+      deleteStudentById: state.deleteStudentById,
+    }))
+  );
 
   const courseNameMap = useMemo(
     () =>
@@ -71,107 +82,40 @@ export function StudentsPage({
     [courses],
   );
 
-  const updateQuery = (updater: (prev: StudentQuery) => StudentQuery) => {
-    setLoading(true);
-    setQuery(updater);
-  };
-
-  const refreshList = useCallback(async () => {
-    setLoading(true);
-    try {
-      const result = await fetchStudents(query);
-      setData(result);
-      setGlobalError("");
-    } catch (error) {
-      setGlobalError(appErrorMessage(error));
-    } finally {
-      setLoading(false);
-    }
-  }, [query, setGlobalError]);
+  useEffect(() => {
+    void initializePage();
+  }, [initializePage]);
 
   useEffect(() => {
-    let active = true;
-    fetchStudents(query)
-      .then((result) => {
-        if (!active) return;
-        setData(result);
-        setGlobalError("");
-      })
-      .catch((error) => {
-        if (active) setGlobalError(appErrorMessage(error));
-      })
-      .finally(() => {
-        if (active) setLoading(false);
-      });
-
-    return () => {
-      active = false;
-    };
-  }, [query, setGlobalError]);
-
-  useEffect(() => {
-    Promise.all([
-      fetchClasses(),
-      fetchCourses({
-        page: 1,
-        pageSize: 100,
-        keyword: "",
-        status: "",
-        category: "",
-        sortField: "",
-        sortOrder: "",
-      }).then((result) => result.list),
-    ])
-      .then(([classList, courseList]) => {
-        setClasses(classList);
-        setCourses(courseList);
-      })
-      .catch((error) => setGlobalError(appErrorMessage(error)));
+    setGlobalError("");
   }, [setGlobalError]);
 
-  const openCreate = () => {
-    setEditingId(null);
+  const handleOpenCreate = () => {
     form.setFieldsValue(DEFAULT_STUDENT_FORM);
-    setFormOpen(true);
+    openCreate();
   };
 
-  const openEdit = useCallback(
-    async (id: number) => {
-      setFormLoading(true);
-      setFormOpen(true);
-      try {
-        const detail = await fetchStudentDetail(id);
-        setEditingId(id);
-        form.setFieldsValue({
-          name: detail.name,
-          student_no: detail.student_no,
-          class_name: detail.class_name,
-          phone: detail.phone,
-          email: detail.email,
-          status: detail.status,
-          course_ids: detail.course_ids,
-        });
-      } catch (error) {
-        setGlobalError(appErrorMessage(error));
-        setFormOpen(false);
-      } finally {
-        setFormLoading(false);
-      }
-    },
-    [form, setGlobalError],
-  );
+  const handleOpenEdit = async (id: number) => {
+    const detail = await openEdit(id);
+    if (!detail) {
+      return;
+    }
 
-  const submitForm = async () => {
+    form.setFieldsValue({
+      name: detail.name,
+      student_no: detail.student_no,
+      class_name: detail.class_name,
+      phone: detail.phone,
+      email: detail.email,
+      status: detail.status,
+      course_ids: detail.course_ids,
+    });
+  };
+
+  const handleSubmitForm = async () => {
     try {
       const formValue = await form.validateFields();
-      setFormLoading(true);
-      if (editingId) {
-        await updateStudent(editingId, formValue);
-      } else {
-        await createStudent(formValue);
-      }
-      setFormOpen(false);
-      await refreshList();
+      await submitForm(formValue);
     } catch (error) {
       if (error instanceof Error) {
         const message = appErrorMessage(error);
@@ -180,48 +124,8 @@ export function StudentsPage({
         }
         setGlobalError(message);
       }
-    } finally {
-      setFormLoading(false);
     }
   };
-
-  const resetFilters = () => {
-    setDraftKeyword("");
-    updateQuery((prev) => ({
-      ...prev,
-      keyword: "",
-      className: "",
-      status: "",
-      page: 1,
-    }));
-  };
-
-  const handleDeleteStudent = useCallback(
-    async (id: number) => {
-      setDeletingId(id);
-      try {
-        await deleteStudent(id);
-
-        const nextPage = pageAfterDelete({
-          page: query.page,
-          pageSize: query.pageSize,
-          total: data?.total ?? 0,
-        });
-
-        if (nextPage !== query.page) {
-          updateQuery((prev) => ({ ...prev, page: nextPage }));
-          return;
-        }
-
-        await refreshList();
-      } catch (error) {
-        setGlobalError(appErrorMessage(error));
-      } finally {
-        setDeletingId(null);
-      }
-    },
-    [data?.total, query.page, query.pageSize, refreshList, setGlobalError],
-  );
 
   const columns = useMemo<ColumnsType<Student>>(
     () => [
@@ -306,14 +210,16 @@ export function StudentsPage({
               type="link"
               className="list-action"
               icon={<EditOutlined />}
-              onClick={() => openEdit(student.id)}
+              onClick={() => {
+                void handleOpenEdit(student.id);
+              }}
             >
               编辑
             </Button>
             <Popconfirm
               title={`确认删除学生“${parseMaybeChinese(student.name)}”吗？`}
               onConfirm={async () => {
-                await handleDeleteStudent(student.id);
+                await deleteStudentById(student.id);
               }}
               okButtonProps={{ loading: deletingId === student.id }}
               okText="确认"
@@ -333,7 +239,7 @@ export function StudentsPage({
         ),
       },
     ],
-    [courseNameMap, deletingId, handleDeleteStudent, openEdit],
+    [courseNameMap, deleteStudentById, deletingId],
   );
 
   return (
@@ -345,7 +251,7 @@ export function StudentsPage({
         <Button
           type="primary"
           icon={<PlusOutlined />}
-          onClick={openCreate}
+          onClick={handleOpenCreate}
           className="manage-action-button bg-sky-200 text-lg font-bold text-slate-900"
         >
           新增学生
@@ -361,7 +267,7 @@ export function StudentsPage({
             prefix={<SearchOutlined className="text-slate-400" />}
             onChange={(event) => setDraftKeyword(event.target.value)}
             onPressEnter={() =>
-              updateQuery((prev) => ({
+              void updateQuery((prev) => ({
                 ...prev,
                 keyword: draftKeyword.trim(),
                 page: 1,
@@ -377,7 +283,7 @@ export function StudentsPage({
             allowClear
             className="w-45! rounded-3.5! border-4! border-slate-300!"
             onChange={(value) =>
-              updateQuery((prev) => ({
+              void updateQuery((prev) => ({
                 ...prev,
                 className: value ?? "",
                 page: 1,
@@ -395,7 +301,11 @@ export function StudentsPage({
             allowClear
             className="w-45! rounded-3.5! border-4! border-slate-300!"
             onChange={(value) =>
-              updateQuery((prev) => ({ ...prev, status: value ?? "", page: 1 }))
+              void updateQuery((prev) => ({
+                ...prev,
+                status: value ?? "",
+                page: 1,
+              }))
             }
             options={[
               { value: "active", label: "活跃" },
@@ -406,7 +316,7 @@ export function StudentsPage({
             size="large"
             icon={<SearchOutlined />}
             onClick={() =>
-              updateQuery((prev) => ({
+              void updateQuery((prev) => ({
                 ...prev,
                 keyword: draftKeyword.trim(),
                 page: 1,
@@ -418,7 +328,9 @@ export function StudentsPage({
           </Button>
           <Button
             size="large"
-            onClick={resetFilters}
+            onClick={() => {
+              void resetFilters();
+            }}
            className="w-25! rounded-3.5! border-4! border-slate-900! text-slate-900! hover:border-[#222]! hover:text-slate-900!"
           >
             重置
@@ -439,9 +351,11 @@ export function StudentsPage({
           page={data?.page ?? 1}
           pageSize={data?.pageSize ?? 10}
           total={data?.total ?? 0}
-          onPageChange={(page) => updateQuery((prev) => ({ ...prev, page }))}
+          onPageChange={(page) => {
+            void updateQuery((prev) => ({ ...prev, page }));
+          }}
           onPageSizeChange={(pageSize) =>
-            updateQuery((prev) => ({ ...prev, pageSize, page: 1 }))
+            void updateQuery((prev) => ({ ...prev, pageSize, page: 1 }))
           }
         />
       </Card>
@@ -449,8 +363,8 @@ export function StudentsPage({
       <Modal
         open={formOpen}
         title={editingId ? "编辑学生" : "新增学生"}
-        onCancel={() => !formLoading && setFormOpen(false)}
-        onOk={submitForm}
+        onCancel={() => !formLoading && closeForm()}
+        onOk={handleSubmitForm}
         confirmLoading={formLoading}
         okText="保存"
         cancelText="取消"
