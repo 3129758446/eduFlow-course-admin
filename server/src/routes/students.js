@@ -1,0 +1,243 @@
+import Router from '@koa/router';
+import db from '../database/db.js';
+import { authenticateToken } from '../middleware/auth.js';
+import { success, fail } from '../utils/response.js';
+
+const router = new Router();
+
+router.get('/', authenticateToken, async (ctx) => {
+  const { keyword = '', className = '', status = '', courseId = '', page = 1, pageSize = 10 } = ctx.query;
+  const offset = (Number(page) - 1) * Number(pageSize);
+
+  let where = 'WHERE 1=1';
+  const params = [];
+
+  if (keyword) {
+    where += ' AND (name LIKE ? OR student_no LIKE ?)';
+    params.push(`%${keyword}%`, `%${keyword}%`);
+  }
+  if (className) {
+    where += ' AND class_name = ?';
+    params.push(className);
+  }
+  if (status) {
+    where += ' AND status = ?';
+    params.push(status);
+  }
+
+  let rows = db.prepare(`SELECT * FROM students ${where} ORDER BY created_at DESC`).all(...params);
+
+  if (courseId) {
+    rows = rows.filter((student) => {
+      const ids = JSON.parse(student.course_ids || '[]');
+      return ids.includes(Number(courseId));
+    });
+  }
+
+  const total = rows.length;
+  const list = rows.slice(offset, offset + Number(pageSize)).map((student) => ({
+    ...student,
+    course_ids: JSON.parse(student.course_ids || '[]'),
+  }));
+
+  success(ctx, { list, total, page: Number(page), pageSize: Number(pageSize) });
+});
+
+router.get('/classes', authenticateToken, async (ctx) => {
+  const classes = db.prepare("SELECT DISTINCT class_name FROM students WHERE class_name != '' ORDER BY class_name")
+    .all()
+    .map((row) => row.class_name);
+  success(ctx, classes);
+});
+
+router.get('/:id', authenticateToken, async (ctx) => {
+  const student = db.prepare('SELECT * FROM students WHERE id = ?').get(ctx.params.id);
+  if (!student) {
+    return fail(ctx, 404, '学生不存在');
+  }
+  student.course_ids = JSON.parse(student.course_ids || '[]');
+
+  const courses = db.prepare('SELECT id, name FROM courses').all();
+  const enrolledCourses = courses.filter((course) => student.course_ids.includes(course.id));
+
+  success(ctx, { ...student, enrolledCourses });
+});
+
+router.post('/', authenticateToken, async (ctx) => {
+  const payload = parseStudentPayload(ctx.request.body);
+  if (payload.error) {
+    return fail(ctx, 400, payload.error);
+  }
+
+  const existing = db.prepare('SELECT id FROM students WHERE student_no = ?').get(payload.student_no);
+  if (existing) {
+    return fail(ctx, 400, '学号已存在');
+  }
+
+  const invalidCourseIds = findInvalidCourseIds(payload.course_ids);
+  if (invalidCourseIds.length > 0) {
+    return fail(ctx, 400, '所选课程不存在');
+  }
+
+  const result = db.prepare(`
+    INSERT INTO students (name, student_no, class_name, phone, email, status, course_ids)
+    VALUES (?, ?, ?, ?, ?, ?, ?)
+  `).run(
+    payload.name,
+    payload.student_no,
+    payload.class_name,
+    payload.phone,
+    payload.email,
+    payload.status,
+    JSON.stringify(payload.course_ids)
+  );
+
+  updateCourseCounts();
+
+  const student = db.prepare('SELECT * FROM students WHERE id = ?').get(result.lastInsertRowid);
+  student.course_ids = JSON.parse(student.course_ids || '[]');
+
+  ctx.status = 201;
+  success(ctx, student);
+});
+
+router.put('/:id', authenticateToken, async (ctx) => {
+  const existing = db.prepare('SELECT * FROM students WHERE id = ?').get(ctx.params.id);
+  if (!existing) {
+    return fail(ctx, 404, '学生不存在');
+  }
+
+  const payload = parseStudentPayload(ctx.request.body, existing);
+  if (payload.error) {
+    return fail(ctx, 400, payload.error);
+  }
+
+  const duplicate = db.prepare('SELECT id FROM students WHERE student_no = ? AND id != ?')
+    .get(payload.student_no, ctx.params.id);
+  if (duplicate) {
+    return fail(ctx, 400, '学号已存在');
+  }
+
+  const invalidCourseIds = findInvalidCourseIds(payload.course_ids);
+  if (invalidCourseIds.length > 0) {
+    return fail(ctx, 400, '所选课程不存在');
+  }
+
+  db.prepare(`
+    UPDATE students
+    SET name = ?, student_no = ?, class_name = ?, phone = ?, email = ?, status = ?, course_ids = ?, updated_at = CURRENT_TIMESTAMP
+    WHERE id = ?
+  `).run(
+    payload.name,
+    payload.student_no,
+    payload.class_name,
+    payload.phone,
+    payload.email,
+    payload.status,
+    JSON.stringify(payload.course_ids),
+    ctx.params.id
+  );
+
+  updateCourseCounts();
+
+  const student = db.prepare('SELECT * FROM students WHERE id = ?').get(ctx.params.id);
+  student.course_ids = JSON.parse(student.course_ids || '[]');
+
+  success(ctx, student);
+});
+
+router.delete('/:id', authenticateToken, async (ctx) => {
+  const existing = db.prepare('SELECT * FROM students WHERE id = ?').get(ctx.params.id);
+  if (!existing) {
+    return fail(ctx, 404, '学生不存在');
+  }
+
+  db.prepare('DELETE FROM students WHERE id = ?').run(ctx.params.id);
+  updateCourseCounts();
+
+  success(ctx, null, '删除成功');
+});
+
+function updateCourseCounts() {
+  const courses = db.prepare('SELECT id FROM courses').all();
+  const students = db.prepare('SELECT course_ids FROM students').all();
+
+  for (const course of courses) {
+    const count = students.filter((student) => {
+      const ids = JSON.parse(student.course_ids || '[]');
+      return ids.includes(course.id);
+    }).length;
+    db.prepare('UPDATE courses SET student_count = ? WHERE id = ?').run(count, course.id);
+  }
+}
+
+function parseStudentPayload(body = {}, existing = null) {
+  const rawCourseIds = body.course_ids ?? (existing ? JSON.parse(existing.course_ids || '[]') : []);
+  const courseIds = normalizeCourseIds(rawCourseIds);
+
+  if (courseIds === null) {
+    return { error: 'course_ids 必须是数字数组' };
+  }
+
+  const payload = {
+    name: normalizeText(body.name, existing?.name ?? ''),
+    student_no: normalizeText(body.student_no, existing?.student_no ?? ''),
+    class_name: normalizeText(body.class_name, existing?.class_name ?? ''),
+    phone: normalizeText(body.phone, existing?.phone ?? ''),
+    email: normalizeText(body.email, existing?.email ?? ''),
+    status: normalizeText(body.status, existing?.status ?? 'active') || 'active',
+    course_ids: courseIds,
+  };
+
+  if (!payload.name) {
+    return { error: '学生姓名不能为空' };
+  }
+  if (!payload.student_no) {
+    return { error: '学号不能为空' };
+  }
+  if (!['active', 'inactive'].includes(payload.status)) {
+    return { error: '学生状态不合法' };
+  }
+
+  return payload;
+}
+
+function normalizeCourseIds(value) {
+  if (!Array.isArray(value)) {
+    return null;
+  }
+
+  const ids = [];
+  for (const item of value) {
+    const id = Number(item);
+    if (!Number.isInteger(id) || id <= 0) {
+      return null;
+    }
+    if (!ids.includes(id)) {
+      ids.push(id);
+    }
+  }
+
+  return ids;
+}
+
+function normalizeText(value, fallback = '') {
+  if (value === undefined || value === null) {
+    return fallback;
+  }
+  return String(value).trim();
+}
+
+function findInvalidCourseIds(courseIds) {
+  if (courseIds.length === 0) {
+    return [];
+  }
+
+  const placeholders = courseIds.map(() => '?').join(', ');
+  const rows = db.prepare(`SELECT id FROM courses WHERE id IN (${placeholders})`).all(...courseIds);
+  const validIds = new Set(rows.map((row) => row.id));
+
+  return courseIds.filter((id) => !validIds.has(id));
+}
+
+export default router;

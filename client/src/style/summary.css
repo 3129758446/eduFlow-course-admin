@@ -1,0 +1,146 @@
+.summary-panel {
+  padding: 12px 20px 18px;
+}
+
+.markdown-body {
+  color: #475569;
+  font-size: 16px;
+  line-height: 1.95;
+}
+
+.markdown-body h1,
+.markdown-body h2,
+.markdown-body h3 {
+  margin: 0 0 18px;
+  color: #111827;
+  font-weight: 800;
+}
+
+.markdown-body h1 {
+  font-size: 42px;
+  color: #ef4444;
+}
+
+.markdown-body h2 {
+  margin-top: 30px;
+  font-size: 30px;
+}
+
+.markdown-body h3 {
+  margin-top: 24px;
+  font-size: 24px;
+}
+
+.markdown-body p,
+.markdown-body ul,
+.markdown-body ol {
+  margin: 0 0 18px;
+}
+
+.markdown-body ul,
+.markdown-body ol {
+  padding-left: 22px;
+}
+
+.markdown-body a {
+  color: #0284c7;
+  text-decoration: none;
+}
+
+.markdown-body code {
+  padding: 2px 6px;
+  border-radius: 8px;
+  background: #eff6ff;
+  color: #1e3a8a;
+  font-family: "Cascadia Code", Consolas, monospace;
+}
+
+.code-block-wrap {
+  position: relative;
+}
+
+.code-copy-button {
+  position: absolute;
+  top: 14px;
+  right: 14px;
+  z-index: 1;
+  min-width: 72px;
+  height: 36px;
+  border: 1px solid rgba(148, 163, 184, 0.35);
+  border-radius: 10px;
+  background: rgba(30, 41, 59, 0.92);
+  color: #e2e8f0;
+  font-size: 14px;
+  cursor: pointer;
+}
+
+.code-copy-button:hover {
+  background: rgba(51, 65, 85, 0.96);
+}
+
+.code-block {
+  margin: 22px 0 28px;
+  padding: 56px 24px 22px;
+  color: #dbeafe;
+  background: #2b303b;
+  border-radius: 18px;
+  overflow-x: auto;
+}
+
+.code-block code {
+  display: block;
+  padding: 0;
+  background: transparent;
+  color: inherit;
+  white-space: pre;
+  font-family: "Cascadia Code", Consolas, monospace;
+  line-height: 1.75;
+}
+
+.code-line {
+  display: block;
+}
+
+.token-comment {
+  color: #7f8ea3;
+  font-style: italic;
+}
+
+.token-keyword {
+  color: #c792ea;
+}
+
+.token-string {
+  color: #ecc48d;
+}
+
+.token-number {
+  color: #f78c6c;
+}
+
+.token-function {
+  color: #82aaff;
+}
+
+.token-variable {
+  color: #c3e88d;
+}
+
+.token-built-in {
+  color: #89ddff;
+}
+
+.token-tag {
+  color: #f07178;
+}
+
+.token-attr {
+  color: #ffcb6b;
+}
+
+.md-image {
+  display: block;
+  max-width: 100%;
+  margin: 20px auto;
+  border-radius: 20px;
+}
