@@ -1,6 +1,4 @@
-import { clearAuth, getAuthToken } from './auth';
 import type {
-  ApiEnvelope,
   Course,
   CourseFormValue,
   CourseListResponse,
@@ -14,53 +12,22 @@ import type {
   SummaryData,
   User,
 } from './types';
-
-const API_BASE = '/api';
-
-async function request<T>(path: string, init?: RequestInit) {
-  const headers = new Headers(init?.headers);
-  const token = getAuthToken();
-
-  if (!headers.has('Content-Type') && init?.body) {
-    headers.set('Content-Type', 'application/json');
-  }
-
-  if (token) {
-    headers.set('Authorization', `Bearer ${token}`);
-  }
-
-  const response = await fetch(`${API_BASE}${path}`, {
-    ...init,
-    headers,
-  });
-
-  const payload = (await response.json()) as ApiEnvelope<T>;
-
-  if (response.status === 401 || payload.code === 401) {
-    clearAuth();
-    throw new Error('登录已失效，请重新登录');
-  }
-
-  if (!response.ok || payload.code !== 0) {
-    throw new Error(payload.msg || '请求失败');
-  }
-
-  return payload.data;
-}
+import { request } from './utils/request';
 
 export function login(params: { username: string; password: string }) {
-  return request<LoginResponse>('/auth/login', {
+  return request<LoginResponse>({
+    url: '/auth/login',
     method: 'POST',
-    body: JSON.stringify(params),
+    data: params,
   });
 }
 
 export function getCurrentUser() {
-  return request<User>('/auth/me');
+  return request<User>({ url: '/auth/me' });
 }
 
 export function fetchDashboard() {
-  return request<DashboardData>('/dashboard');
+  return request<DashboardData>({ url: '/dashboard' });
 }
 
 export function fetchCourses(query: Partial<CourseQuery>) {
@@ -70,39 +37,43 @@ export function fetchCourses(query: Partial<CourseQuery>) {
       search.set(key, String(value));
     }
   });
-  return request<CourseListResponse>(`/courses?${search.toString()}`);
+  return request<CourseListResponse>({ url: `/courses?${search.toString()}` });
 }
 
 export function fetchCourseCategories() {
-  return request<string[]>('/courses/categories');
+  return request<string[]>({ url: '/courses/categories' });
 }
 
 export function fetchCourseDetail(id: number) {
-  return request<Course>(`/courses/${id}`);
+  return request<Course>({ url: `/courses/${id}` });
 }
 
 export function createCourse(payload: CourseFormValue) {
-  return request<Course>('/courses', {
+  return request<Course>({
+    url: '/courses',
     method: 'POST',
-    body: JSON.stringify(payload),
+    data: payload,
   });
 }
 
 export function updateCourse(id: number, payload: CourseFormValue) {
-  return request<Course>(`/courses/${id}`, {
+  return request<Course>({
+    url: `/courses/${id}`,
     method: 'PUT',
-    body: JSON.stringify(payload),
+    data: payload,
   });
 }
 
 export function deleteCourse(id: number) {
-  return request<null>(`/courses/${id}`, {
+  return request<null>({
+    url: `/courses/${id}`,
     method: 'DELETE',
   });
 }
 
 export function toggleCourseStatus(id: number) {
-  return request<Course>(`/courses/${id}/status`, {
+  return request<Course>({
+    url: `/courses/${id}/status`,
     method: 'PATCH',
   });
 }
@@ -114,37 +85,40 @@ export function fetchStudents(query: Partial<StudentQuery>) {
       search.set(key, String(value));
     }
   });
-  return request<StudentListResponse>(`/students?${search.toString()}`);
+  return request<StudentListResponse>({ url: `/students?${search.toString()}` });
 }
 
 export function fetchClasses() {
-  return request<string[]>('/students/classes');
+  return request<string[]>({ url: '/students/classes' });
 }
 
 export function fetchStudentDetail(id: number) {
-  return request<StudentDetail>(`/students/${id}`);
+  return request<StudentDetail>({ url: `/students/${id}` });
 }
 
 export function createStudent(payload: StudentFormValue) {
-  return request<StudentDetail>('/students', {
+  return request<StudentDetail>({
+    url: '/students',
     method: 'POST',
-    body: JSON.stringify(payload),
+    data: payload,
   });
 }
 
 export function updateStudent(id: number, payload: StudentFormValue) {
-  return request<StudentDetail>(`/students/${id}`, {
+  return request<StudentDetail>({
+    url: `/students/${id}`,
     method: 'PUT',
-    body: JSON.stringify(payload),
+    data: payload,
   });
 }
 
 export function deleteStudent(id: number) {
-  return request<null>(`/students/${id}`, {
+  return request<null>({
+    url: `/students/${id}`,
     method: 'DELETE',
   });
 }
 
 export function fetchSummary() {
-  return request<SummaryData>('/summary');
+  return request<SummaryData>({ url: '/summary' });
 }
