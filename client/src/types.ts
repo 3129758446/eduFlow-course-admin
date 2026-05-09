@@ -59,6 +59,7 @@ export type CourseListResponse = {
   pageSize: number;
 };
 
+// 课程查询参数
 export type CourseQuery = {
   keyword: string;
   status: string;
@@ -102,6 +103,7 @@ export type StudentListResponse = {
   pageSize: number;
 };
 
+// 学生查询参数
 export type StudentQuery = {
   keyword: string;
   className: string;

@@ -18,14 +18,17 @@ type DashboardStore = {
   refresh: () => Promise<void>;
 };
 
+// 清除全局错误
 function clearGlobalError() {
   useAuthStore.getState().setGlobalError('');
 }
 
+// 设置全局错误
 function setGlobalError(error: unknown) {
   useAuthStore.getState().setGlobalError(appErrorMessage(error));
 }
 
+// 创建工作台数据仓库
 export const useDashboardStore = create<DashboardStore>((set) => ({
   data: null,
   loading: true,
@@ -33,7 +36,7 @@ export const useDashboardStore = create<DashboardStore>((set) => ({
     set({ loading: true });
 
     try {
-      const data = await fetchDashboard();
+      const data = await fetchDashboard(); // 拉取工作台数据
       set({ data, loading: false });
       clearGlobalError();
     } catch (error) {
@@ -43,7 +46,8 @@ export const useDashboardStore = create<DashboardStore>((set) => ({
   },
 }));
 
-registerStoreResetter(() => {
+// 重置工作台数据仓库
+registerStoreResetter(() => { 
   useDashboardStore.setState({
     data: null,
     loading: true,

@@ -30,10 +30,10 @@ export function LoginRouteElement() {
     return <Navigate to="/dashboard" replace />;
   }
 
-  return (
+  return (  // 未登录用户访问 /login 时展示登录页。
     <LoginPage
       onLogin={handleLogin}
-      error={globalError}
+      error={globalError} 
       setError={setGlobalError}
     />
   );

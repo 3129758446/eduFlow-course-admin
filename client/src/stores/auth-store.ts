@@ -32,12 +32,14 @@ type AuthStore = {
 const initialToken = getAuthToken();
 let initializePromise: Promise<void> | null = null;
 
+// 认证状态仓库
+// 存储登录态（初始化/登录/退出）与全局错误信息，驱动路由守卫与页面级提示
 export const useAuthStore = create<AuthStore>((set) => ({
-  authLoading: Boolean(initialToken),
-  initialized: false,
-  token: initialToken,
-  user: null,
-  globalError: "",
+  authLoading: Boolean(initialToken), // 初始化时根据是否有 token 决定是否 loading
+  initialized: false, // 登录成功后初始化完成，不再 loading
+  token: initialToken, // 登录成功后更新 token
+  user: null, // 登录成功后更新用户信息
+  globalError: "", // 错误信息，用于页面级提示
   setGlobalError: (value) => set({ globalError: value }),
   initializeAuth: async () => {
     // 冷启动期间可能有多个组件同时触发初始化，这里复用同一个 Promise 防止重复请求 /auth/me。
@@ -45,6 +47,7 @@ export const useAuthStore = create<AuthStore>((set) => ({
       return initializePromise;
     }
 
+    // 初始化认证状态：初始化时根据是否有 token 决定是否 loading，登录成功后更新 token 和用户信息。
     initializePromise = (async () => {
       const token = getAuthToken();
 
@@ -59,10 +62,11 @@ export const useAuthStore = create<AuthStore>((set) => ({
         return;
       }
 
+      // 有本地 token 时，先设置为 loading 状态，等待校验结果。
       set({ authLoading: true, token });
 
       try {
-        const user = await getCurrentUser();
+        const user = await getCurrentUser(); // 校验登录态
         set({
           authLoading: false,
           initialized: true,

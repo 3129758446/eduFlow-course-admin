@@ -79,10 +79,12 @@ export function CoursesPage() {
     })),
   );
 
+  // 初始化页面数据，包括课程列表和筛选辅助数据
   useEffect(() => {
     void initializePage();
   }, [initializePage]);
 
+  // 清除全局错误信息
   useEffect(() => {
     setGlobalError("");
   }, [setGlobalError]);
@@ -93,6 +95,8 @@ export function CoursesPage() {
     openCreate();
   };
 
+  // 打开编辑弹窗
+  // 编辑时先拉详情再回填表单，保证弹窗里显示的是服务端最新数据。
   const handleOpenEdit = async (id: number) => {
     // 编辑先拉详情再回填表单，保证弹窗里显示的是服务端最新数据。
     const detail = await openEdit(id);
@@ -110,6 +114,8 @@ export function CoursesPage() {
     });
   };
 
+  // 提交表单
+  // 新增或编辑课程时，先校验表单，再提交到 store 处理。
   const handleSubmitForm = async () => {
     try {
       // 先走 antd 表单校验，再把合法数据交给 store 统一决定新增还是编辑。
@@ -120,6 +126,9 @@ export function CoursesPage() {
     }
   };
 
+  // 课程列表列配置
+  // 包含课程名称、讲师、分类、课时、操作列（编辑/删除/发布）
+  // 点击操作列触发对应事件，如编辑/删除/发布课程。
   const columns = useMemo<ColumnsType<Course>>(
     () => [
       // 列配置集中在 useMemo 内，便于和当前页面行为（编辑/删除/排序）一起维护。

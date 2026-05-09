@@ -39,35 +39,37 @@ const defaultCourseQuery: CourseQuery = {
   sortOrder: "",
 };
 
+// 清除全局错误
 function clearGlobalError() {
   useAuthStore.getState().setGlobalError("");
 }
 
+// 设置全局错误
 function setGlobalError(error: unknown) {
   useAuthStore.getState().setGlobalError(appErrorMessage(error));
 }
 
 type CourseStore = {
-  data: CourseListResponse | null;
-  loading: boolean;
-  categories: string[];
-  query: CourseQuery;
-  draftKeyword: string;
-  formOpen: boolean;
-  editingId: number | null;
-  formLoading: boolean;
-  setDraftKeyword: (value: string) => void;
-  initializePage: () => Promise<void>;
-  refreshList: () => Promise<void>;
-  loadCategories: () => Promise<void>;
-  updateQuery: (updater: (prev: CourseQuery) => CourseQuery) => Promise<void>;
-  resetFilters: () => Promise<void>;
-  openCreate: () => void;
-  openEdit: (id: number) => Promise<Course | null>;
-  closeForm: () => void;
-  submitForm: (payload: CourseFormValue) => Promise<void>;
-  deleteCourseById: (id: number) => Promise<void>;
-  toggleCourseStatusById: (id: number) => Promise<void>;
+  data: CourseListResponse | null; // 课程列表数据
+  loading: boolean; // 列表数据加载状态
+  categories: string[]; // 课程分类列表
+  query: CourseQuery; // 课程查询参数
+  draftKeyword: string; // 草稿关键词
+  formOpen: boolean; // 表单弹窗是否打开
+  editingId: number | null; // 当前编辑的课程 ID
+  formLoading: boolean; // 表单提交加载状态
+  setDraftKeyword: (value: string) => void; // 设置草稿关键词
+  initializePage: () => Promise<void>; // 初始化页面数据
+  refreshList: () => Promise<void>; // 刷新课程列表
+  loadCategories: () => Promise<void>; // 加载课程分类列表
+  updateQuery: (updater: (prev: CourseQuery) => CourseQuery) => Promise<void>; // 更新查询查询参数
+  resetFilters: () => Promise<void>; // 重置筛选参数
+  openCreate: () => void; // 打开创建课程表单
+  openEdit: (id: number) => Promise<Course | null>; // 打开编辑课程表单
+  closeForm: () => void; // 关闭表单弹窗
+  submitForm: (payload: CourseFormValue) => Promise<void>; // 提交表单数据
+  deleteCourseById: (id: number) => Promise<void>; // 删除课程
+  toggleCourseStatusById: (id: number) => Promise<void>; // 切换课程状态
 };
 
 export const useCourseStore = create<CourseStore>((set, get) => ({
@@ -75,15 +77,18 @@ export const useCourseStore = create<CourseStore>((set, get) => ({
   loading: true,
   categories: [],
   query: defaultCourseQuery,
-  draftKeyword: "",
-  formOpen: false,
-  editingId: null,
-  formLoading: false,
+  draftKeyword: "", // 草稿关键词
+  formOpen: false, // 表单弹窗是否打开
+  editingId: null, // 当前编辑的课程 ID
+  formLoading: false, // 表单提交加载状态
+  // 设置草稿关键词
   setDraftKeyword: (value) => set({ draftKeyword: value }),
+  // 初始化页面数据
   initializePage: async () => {
     // 列表数据和筛选辅助数据并行拉取，减少首屏等待时间。
     await Promise.all([get().refreshList(), get().loadCategories()]);
   },
+  // 刷新课程列表
   refreshList: async () => {
     set({ loading: true });
     try {
@@ -95,6 +100,7 @@ export const useCourseStore = create<CourseStore>((set, get) => ({
       setGlobalError(error);
     }
   },
+  // 加载课程分类列表
   loadCategories: async () => {
     try {
       const categories = await fetchCourseCategories();
@@ -103,14 +109,16 @@ export const useCourseStore = create<CourseStore>((set, get) => ({
       setGlobalError(error);
     }
   },
+  // 更新查询查询参数
   updateQuery: async (updater) => {
     // 所有列表交互都通过 query 收敛，保证筛选、排序、分页的数据源一致。
     set((state) => ({
-      query: updater(state.query),
+      query: updater(state.query), // 更新查询参数
       loading: true,
     }));
     await get().refreshList();
   },
+  // 重置筛选参数
   resetFilters: async () => {
     set((state) => ({
       draftKeyword: "",
@@ -125,12 +133,14 @@ export const useCourseStore = create<CourseStore>((set, get) => ({
     }));
     await get().refreshList();
   },
+  // 打开创建课程表单
   openCreate: () => {
     set({
       editingId: null,
       formOpen: true,
     });
   },
+  // 打开编辑课程表单
   openEdit: async (id) => {
     set({
       formLoading: true,
@@ -154,9 +164,11 @@ export const useCourseStore = create<CourseStore>((set, get) => ({
       return null;
     }
   },
+  // 关闭表单弹窗
   closeForm: () => {
     set({ formOpen: false });
   },
+  // 提交表单数据
   submitForm: async (payload) => {
     set({ formLoading: true });
 
@@ -180,6 +192,7 @@ export const useCourseStore = create<CourseStore>((set, get) => ({
       throw error;
     }
   },
+  // 删除课程
   deleteCourseById: async (id) => {
     try {
       await deleteCourse(id);
@@ -204,6 +217,7 @@ export const useCourseStore = create<CourseStore>((set, get) => ({
       setGlobalError(error);
     }
   },
+  // 切换课程状态
   toggleCourseStatusById: async (id) => {
     try {
       await toggleCourseStatus(id);
@@ -213,7 +227,7 @@ export const useCourseStore = create<CourseStore>((set, get) => ({
     }
   },
 }));
-
+// 重置课程数据仓库
 registerStoreResetter(() => {
   useCourseStore.setState({
     data: null,

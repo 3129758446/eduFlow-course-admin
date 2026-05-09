@@ -18,14 +18,17 @@ type SummaryStore = {
   refresh: () => Promise<void>;
 };
 
+// 清除全局错误信息
 function clearGlobalError() {
   useAuthStore.getState().setGlobalError('');
 }
 
+// 设置全局错误信息
 function setGlobalError(error: unknown) {
   useAuthStore.getState().setGlobalError(appErrorMessage(error));
 }
 
+// 学习总结仓库
 export const useSummaryStore = create<SummaryStore>((set) => ({
   data: null,
   loading: true,
@@ -43,6 +46,7 @@ export const useSummaryStore = create<SummaryStore>((set) => ({
   },
 }));
 
+// 重置学习总结状态
 registerStoreResetter(() => {
   useSummaryStore.setState({
     data: null,

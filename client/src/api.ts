@@ -25,6 +25,7 @@ import type {
 } from './types';
 import { request } from './utils/request';
 
+// 登录
 export function login(params: { username: string; password: string }) {
   return request<LoginResponse>({
     url: '/auth/login',
@@ -33,32 +34,39 @@ export function login(params: { username: string; password: string }) {
   });
 }
 
+// 获取当前用户信息
 export function getCurrentUser() {
   return request<User>({ url: '/auth/me' });
 }
 
+// 获取工作台数据
 export function fetchDashboard() {
   return request<DashboardData>({ url: '/dashboard' });
 }
 
+// 获取课程列表
 export function fetchCourses(query: Partial<CourseQuery>) {
-  const search = new URLSearchParams();
+  const search = new URLSearchParams(); // 构建查询参数
+  // 过滤空值
   Object.entries(query).forEach(([key, value]) => {
     if (value !== '' && value !== undefined && value !== null) {
-      search.set(key, String(value));
+      search.set(key, String(value)); 
     }
   });
   return request<CourseListResponse>({ url: `/courses?${search.toString()}` });
 }
 
+// 获取课程分类
 export function fetchCourseCategories() {
   return request<string[]>({ url: '/courses/categories' });
 }
 
+// 获取课程详情
 export function fetchCourseDetail(id: number) {
   return request<Course>({ url: `/courses/${id}` });
 }
 
+// 创建课程
 export function createCourse(payload: CourseFormValue) {
   return request<Course>({
     url: '/courses',
@@ -67,6 +75,7 @@ export function createCourse(payload: CourseFormValue) {
   });
 }
 
+// 更新课程
 export function updateCourse(id: number, payload: CourseFormValue) {
   return request<Course>({
     url: `/courses/${id}`,
@@ -75,6 +84,7 @@ export function updateCourse(id: number, payload: CourseFormValue) {
   });
 }
 
+// 删除课程
 export function deleteCourse(id: number) {
   return request<null>({
     url: `/courses/${id}`,
@@ -82,6 +92,7 @@ export function deleteCourse(id: number) {
   });
 }
 
+// 切换课程状态
 export function toggleCourseStatus(id: number) {
   return request<Course>({
     url: `/courses/${id}/status`,
@@ -89,20 +100,24 @@ export function toggleCourseStatus(id: number) {
   });
 }
 
+// 获取学生列表
 export function fetchStudents(query: Partial<StudentQuery>) {
-  const search = new URLSearchParams();
+  const search = new URLSearchParams(); // 构建查询参数
+  // 过滤空值
   Object.entries(query).forEach(([key, value]) => {
     if (value !== '' && value !== undefined && value !== null) {
-      search.set(key, String(value));
+      search.set(key, String(value)); 
     }
   });
   return request<StudentListResponse>({ url: `/students?${search.toString()}` });
 }
 
+// 获取班级列表
 export function fetchClasses() {
   return request<string[]>({ url: '/students/classes' });
 }
 
+// 校验学生学号是否唯一
 export function checkStudentNoUnique(studentNo: string, excludeId?: number) {
   return fetchStudents({
     keyword: studentNo,
@@ -118,10 +133,12 @@ export function checkStudentNoUnique(studentNo: string, excludeId?: number) {
   });
 }
 
+// 获取学生详情
 export function fetchStudentDetail(id: number) {
   return request<StudentDetail>({ url: `/students/${id}` });
 }
 
+// 创建学生
 export function createStudent(payload: StudentFormValue) {
   return request<StudentDetail>({
     url: '/students',

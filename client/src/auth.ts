@@ -11,15 +11,18 @@ import type { User } from './types';
 const TOKEN_KEY = 'course_admin_token';
 const USER_KEY = 'course_admin_user';
 
+// 从 localStorage 读取 token
 export function getAuthToken() {
   return localStorage.getItem(TOKEN_KEY);
 }
 
+// 登录成功后写入 token 与 user 到 localStorage
 export function setAuth(token: string, user: User) {
   localStorage.setItem(TOKEN_KEY, token);
   localStorage.setItem(USER_KEY, JSON.stringify(user));
 }
 
+// 清理 localStorage 中的 token 与 user
 export function clearAuth() {
   localStorage.removeItem(TOKEN_KEY);
   localStorage.removeItem(USER_KEY);

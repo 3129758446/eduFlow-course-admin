@@ -6,6 +6,7 @@
 */
 const resetters = new Set<() => void>();
 
+// 注册 store 重置函数
 export function registerStoreResetter(resetter: () => void) {
   resetters.add(resetter);
 
@@ -14,6 +15,7 @@ export function registerStoreResetter(resetter: () => void) {
   };
 }
 
+// 重置所有 store 状态
 export function resetAllStores() {
   resetters.forEach((resetter) => {
     resetter();

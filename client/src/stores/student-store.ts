@@ -37,36 +37,37 @@ const defaultStudentQuery: StudentQuery = {
   pageSize: 10,
 };
 
+// 清除全局错误
 function clearGlobalError() {
   useAuthStore.getState().setGlobalError("");
 }
-
+// 设置全局错误
 function setGlobalError(error: unknown) {
   useAuthStore.getState().setGlobalError(appErrorMessage(error));
 }
 
 type StudentStore = {
-  data: StudentListResponse | null;
-  loading: boolean;
-  classes: string[];
-  courses: Course[];
-  query: StudentQuery;
-  draftKeyword: string;
-  formOpen: boolean;
-  editingId: number | null;
-  formLoading: boolean;
-  deletingId: number | null;
-  setDraftKeyword: (value: string) => void;
-  initializePage: () => Promise<void>;
-  refreshList: () => Promise<void>;
-  loadSupportData: () => Promise<void>;
-  updateQuery: (updater: (prev: StudentQuery) => StudentQuery) => Promise<void>;
-  resetFilters: () => Promise<void>;
-  openCreate: () => void;
-  openEdit: (id: number) => Promise<StudentDetail | null>;
-  closeForm: () => void;
-  submitForm: (payload: StudentFormValue) => Promise<void>;
-  deleteStudentById: (id: number) => Promise<void>;
+  data: StudentListResponse | null; // 学生列表数据
+  loading: boolean; // 加载状态
+  classes: string[]; // 班级列表
+  courses: Course[]; // 课程列表
+  query: StudentQuery; // 筛选参数
+  draftKeyword: string; // 草稿关键词
+  formOpen: boolean; // 表单弹窗状态
+  editingId: number | null; // 编辑中的学生ID
+  formLoading: boolean; // 表单提交状态
+  deletingId: number | null; // 删除中的学生ID
+  setDraftKeyword: (value: string) => void; // 设置草稿关键词
+  initializePage: () => Promise<void>; // 初始化页面数据
+  refreshList: () => Promise<void>; // 刷新学生列表
+  loadSupportData: () => Promise<void>; // 加载班级/课程支持数据
+  updateQuery: (updater: (prev: StudentQuery) => StudentQuery) => Promise<void>; // 更新筛选参数
+  resetFilters: () => Promise<void>; // 重置筛选参数
+  openCreate: () => void; // 打开创建表单
+  openEdit: (id: number) => Promise<StudentDetail | null>; // 打开编辑表单
+  closeForm: () => void; // 关闭表单弹窗
+  submitForm: (payload: StudentFormValue) => Promise<void>; // 提交表单数据
+  deleteStudentById: (id: number) => Promise<void>; // 删除学生
 };
 
 export const useStudentStore = create<StudentStore>((set, get) => ({
@@ -85,17 +86,20 @@ export const useStudentStore = create<StudentStore>((set, get) => ({
     // 学生列表和班级/课程辅助数据并行加载，打开页面即可完成筛选与表单准备。
     await Promise.all([get().refreshList(), get().loadSupportData()]);
   },
+  // 刷新学生列表
   refreshList: async () => {
     set({ loading: true });
     try {
       const result = await fetchStudents(get().query);
       set({ data: result, loading: false });
-      clearGlobalError();
-    } catch (error) {
+      clearGlobalError(); // 刷新列表成功时，清除错误信息
+    } catch (error) { 
+      // 刷新列表失败时，显示错误信息并重置加载状态
       set({ loading: false });
       setGlobalError(error);
     }
   },
+  // 加载班级/课程支持数据
   loadSupportData: async () => {
     try {
       // 课程选择与班级筛选都依赖支持数据，这里集中加载避免页面自己维护多份状态。
@@ -104,11 +108,11 @@ export const useStudentStore = create<StudentStore>((set, get) => ({
         fetchCourses({
           page: 1,
           pageSize: 100,
-          keyword: "",
-          status: "",
-          category: "",
-          sortField: "",
-          sortOrder: "",
+          keyword: "", // 空关键词确保加载所有课程
+          status: "", // 空状态确保加载所有课程
+          category: "", // 空分类确保加载所有课程
+          sortField: "", // 空排序字段确保加载所有课程
+          sortOrder: "", // 空排序顺序确保加载所有课程
         }).then((result) => result.list),
       ]);
 
@@ -120,6 +124,7 @@ export const useStudentStore = create<StudentStore>((set, get) => ({
       setGlobalError(error);
     }
   },
+  // 更新筛选参数
   updateQuery: async (updater) => {
     // 统一通过 query 驱动列表请求，便于复用分页、搜索和筛选逻辑。
     set((state) => ({
@@ -128,11 +133,12 @@ export const useStudentStore = create<StudentStore>((set, get) => ({
     }));
     await get().refreshList();
   },
+  // 删除学生重置筛选参数
   resetFilters: async () => {
     set((state) => ({
       draftKeyword: "",
       query: {
-        ...state.query,
+        ...state.query, // 重置筛选参数
         keyword: "",
         className: "",
         status: "",
@@ -142,12 +148,14 @@ export const useStudentStore = create<StudentStore>((set, get) => ({
     }));
     await get().refreshList();
   },
+  // 打开创建表单
   openCreate: () => {
     set({
       editingId: null,
       formOpen: true,
     });
   },
+  // 打开编辑表单
   openEdit: async (id) => {
     set({
       formLoading: true,
@@ -171,9 +179,11 @@ export const useStudentStore = create<StudentStore>((set, get) => ({
       return null;
     }
   },
+  // 关闭表单弹窗
   closeForm: () => {
     set({ formOpen: false });
   },
+  // 提交表单数据
   submitForm: async (payload) => {
     set({ formLoading: true });
 
@@ -197,6 +207,7 @@ export const useStudentStore = create<StudentStore>((set, get) => ({
       throw error;
     }
   },
+  // 删除学生
   deleteStudentById: async (id) => {
     // 记录当前删除行，用于给对应按钮显示 loading，而不是整页阻塞。
     set({ deletingId: id });
@@ -228,6 +239,7 @@ export const useStudentStore = create<StudentStore>((set, get) => ({
   },
 }));
 
+// 重置学生状态
 registerStoreResetter(() => {
   useStudentStore.setState({
     data: null,

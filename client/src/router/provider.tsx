@@ -9,10 +9,13 @@ import { RouterProvider } from 'react-router-dom';
 import { router } from './routes';
 import { useAuthStore } from '../stores/auth-store';
 
+// 应用路由提供器
 export function AppRouterProvider() {
   const initializeAuth = useAuthStore((state) => state.initializeAuth);
 
   useEffect(() => {
+    // 应用启动时先等登录态校验结束，避免“明明已登录却先看到登录页”的闪烁。
+    // 初始化完成后正常渲染路由。
     void initializeAuth();
   }, [initializeAuth]);
 
