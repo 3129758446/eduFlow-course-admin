@@ -1,3 +1,9 @@
+/* 
+模块：学习总结页面
+定位：从服务端拉取 Markdown 内容并以内置解析器渲染，支持代码高亮与一键复制
+数据流：useSummaryStore.refresh() -> data.content -> <MarkdownRenderer />
+用法：受保护路由下直接渲染
+*/
 import { useEffect } from "react";
 import { useShallow } from "zustand/react/shallow";
 import { EmptyState, PanelLoading } from "../components/feedback";

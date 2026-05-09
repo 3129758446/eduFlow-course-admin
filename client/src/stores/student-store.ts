@@ -1,4 +1,13 @@
-import { create } from 'zustand';
+/* 
+模块：学生管理仓库（Zustand）
+定位：统一管理学生列表/筛选/分页、表单弹窗与增删改操作，并维护支持数据（班级/课程）
+数据流：fetchStudents(query)->data；openEdit(id)->fetchStudentDetail；删除后页码回退
+对外：data/loading/classes/courses/query/... 及操作函数
+用法：StudentsPage 订阅并驱动；学号唯一性校验在页面层使用 API 方法
+学习要点：
+- 支持数据通过 Promise.all 并行加载；删除时显示 deletingId 控制按钮 loading
+*/
+import { create } from "zustand";
 import {
   createStudent,
   deleteStudent,
@@ -7,29 +16,29 @@ import {
   fetchStudentDetail,
   fetchStudents,
   updateStudent,
-} from '../api';
+} from "../api";
 import type {
   Course,
   StudentDetail,
   StudentFormValue,
   StudentListResponse,
   StudentQuery,
-} from '../types';
-import { pageAfterDelete } from '../utils/pagination';
-import { appErrorMessage } from '../utils/text';
-import { registerStoreResetter } from './reset-registry';
-import { useAuthStore } from './auth-store';
+} from "../types";
+import { pageAfterDelete } from "../utils/pagination";
+import { appErrorMessage } from "../utils/text";
+import { registerStoreResetter } from "./reset-registry";
+import { useAuthStore } from "./auth-store";
 
 const defaultStudentQuery: StudentQuery = {
-  keyword: '',
-  className: '',
-  status: '',
+  keyword: "",
+  className: "",
+  status: "",
   page: 1,
   pageSize: 10,
 };
 
 function clearGlobalError() {
-  useAuthStore.getState().setGlobalError('');
+  useAuthStore.getState().setGlobalError("");
 }
 
 function setGlobalError(error: unknown) {
@@ -66,13 +75,14 @@ export const useStudentStore = create<StudentStore>((set, get) => ({
   classes: [],
   courses: [],
   query: defaultStudentQuery,
-  draftKeyword: '',
+  draftKeyword: "",
   formOpen: false,
   editingId: null,
   formLoading: false,
   deletingId: null,
   setDraftKeyword: (value) => set({ draftKeyword: value }),
   initializePage: async () => {
+    // 学生列表和班级/课程辅助数据并行加载，打开页面即可完成筛选与表单准备。
     await Promise.all([get().refreshList(), get().loadSupportData()]);
   },
   refreshList: async () => {
@@ -88,16 +98,17 @@ export const useStudentStore = create<StudentStore>((set, get) => ({
   },
   loadSupportData: async () => {
     try {
+      // 课程选择与班级筛选都依赖支持数据，这里集中加载避免页面自己维护多份状态。
       const [classes, courses] = await Promise.all([
         fetchClasses(),
         fetchCourses({
           page: 1,
           pageSize: 100,
-          keyword: '',
-          status: '',
-          category: '',
-          sortField: '',
-          sortOrder: '',
+          keyword: "",
+          status: "",
+          category: "",
+          sortField: "",
+          sortOrder: "",
         }).then((result) => result.list),
       ]);
 
@@ -110,6 +121,7 @@ export const useStudentStore = create<StudentStore>((set, get) => ({
     }
   },
   updateQuery: async (updater) => {
+    // 统一通过 query 驱动列表请求，便于复用分页、搜索和筛选逻辑。
     set((state) => ({
       query: updater(state.query),
       loading: true,
@@ -118,12 +130,12 @@ export const useStudentStore = create<StudentStore>((set, get) => ({
   },
   resetFilters: async () => {
     set((state) => ({
-      draftKeyword: '',
+      draftKeyword: "",
       query: {
         ...state.query,
-        keyword: '',
-        className: '',
-        status: '',
+        keyword: "",
+        className: "",
+        status: "",
         page: 1,
       },
       loading: true,
@@ -167,6 +179,7 @@ export const useStudentStore = create<StudentStore>((set, get) => ({
 
     try {
       const { editingId } = get();
+      // 与课程模块保持一致：editingId 存在表示编辑，否则为新增。
       if (editingId) {
         await updateStudent(editingId, payload);
       } else {
@@ -185,12 +198,14 @@ export const useStudentStore = create<StudentStore>((set, get) => ({
     }
   },
   deleteStudentById: async (id) => {
+    // 记录当前删除行，用于给对应按钮显示 loading，而不是整页阻塞。
     set({ deletingId: id });
 
     try {
       await deleteStudent(id);
 
       const { data, query } = get();
+      // 删除后自动回退到仍然存在数据的页码，避免出现空白页。
       const nextPage = pageAfterDelete({
         page: query.page,
         pageSize: query.pageSize,
@@ -220,7 +235,7 @@ registerStoreResetter(() => {
     classes: [],
     courses: [],
     query: defaultStudentQuery,
-    draftKeyword: '',
+    draftKeyword: "",
     formOpen: false,
     editingId: null,
     formLoading: false,

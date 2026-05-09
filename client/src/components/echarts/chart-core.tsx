@@ -1,3 +1,8 @@
+/* 
+模块：ECharts 容器
+定位：注册按需组件，提供 ChartContainer 负责实例化/自适应/更新 option
+用法：传入 option 与可选 className，图表组件仅专注配置
+*/
 import { useEffect, useRef } from "react";
 import * as echarts from "echarts/core";
 import {
@@ -55,6 +60,7 @@ export function ChartContainer({
   useEffect(() => {
     if (!chartRef.current) return;
 
+    // 图表实例只在容器挂载后创建一次，后续仅更新 option，避免重复 init/dispose。
     const chart = echarts.init(chartRef.current);
     instanceRef.current = chart;
 
@@ -62,6 +68,7 @@ export function ChartContainer({
     window.addEventListener("resize", handleResize);
 
     return () => {
+      // 页面卸载时释放实例和事件监听，避免内存泄漏。
       window.removeEventListener("resize", handleResize);
       chart.dispose();
       instanceRef.current = null;
@@ -69,6 +76,7 @@ export function ChartContainer({
   }, []);
 
   useEffect(() => {
+    // notMerge=true 保证每次都以最新配置重绘，避免不同图表状态相互污染。
     const setOptionConfig: SetOptionOpts = { notMerge: true };
     instanceRef.current?.setOption(option, setOptionConfig);
   }, [option]);

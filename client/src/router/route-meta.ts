@@ -1,3 +1,7 @@
+/* 
+模块：路由元信息
+定位：从 pathname 推导侧边栏高亮 key
+*/
 export type RouteKey = 'login' | 'dashboard' | 'courses' | 'students' | 'summary';
 
 export function getRouteKeyFromPathname(pathname: string): RouteKey {

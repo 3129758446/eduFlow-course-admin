@@ -1,3 +1,10 @@
+/* 
+模块：课程管理页面
+定位：列表/筛选/分页/排序 + 新增/编辑/删除/发布 交互聚合页
+数据流：由 useCourseStore 统一管理；表单通过 antd Modal + Form 完成校验与提交
+用法：通过 shallow 选择最小状态切片，事件直接调用 store 方法
+学习要点：删除后依据总数与页码计算 pageAfterDelete，避免空页
+*/
 import {
   DeleteOutlined,
   EditOutlined,
@@ -81,11 +88,13 @@ export function CoursesPage() {
   }, [setGlobalError]);
 
   const handleOpenCreate = () => {
+    // 新增时先写入默认值，避免复用上一次编辑表单残留的数据。
     form.setFieldsValue(DEFAULT_COURSE_FORM);
     openCreate();
   };
 
   const handleOpenEdit = async (id: number) => {
+    // 编辑先拉详情再回填表单，保证弹窗里显示的是服务端最新数据。
     const detail = await openEdit(id);
     if (!detail) {
       return;
@@ -103,6 +112,7 @@ export function CoursesPage() {
 
   const handleSubmitForm = async () => {
     try {
+      // 先走 antd 表单校验，再把合法数据交给 store 统一决定新增还是编辑。
       const formValue = await form.validateFields();
       await submitForm(formValue);
     } catch {
@@ -112,6 +122,7 @@ export function CoursesPage() {
 
   const columns = useMemo<ColumnsType<Course>>(
     () => [
+      // 列配置集中在 useMemo 内，便于和当前页面行为（编辑/删除/排序）一起维护。
       {
         title: "课程名称",
         dataIndex: "name",
@@ -167,6 +178,7 @@ export function CoursesPage() {
             className="inline-flex items-center gap-1 text-lg font-extrabold text-slate-900"
             onClick={() =>
               updateQuery((prev) => {
+                // 点击表头在升序/降序之间切换，并重置到第一页避免排序后页码越界。
                 const nextOrder =
                   prev.sortField === "student_count" &&
                   prev.sortOrder === "descend"
@@ -277,6 +289,7 @@ export function CoursesPage() {
       </div>
 
       <Card title="" className="manage-card">
+        {/* 筛选区遵循“搜索词 + 枚举筛选 + 操作按钮”的后台通用布局。 */}
         <div className="mb-8 flex w-fit max-w-full flex-wrap items-center gap-4">
           <Input
             size="large"
@@ -285,6 +298,7 @@ export function CoursesPage() {
             prefix={<SearchOutlined className="text-slate-400" />}
             onChange={(event) => setDraftKeyword(event.target.value)}
             onPressEnter={() =>
+              // 输入框只维护草稿值，按回车时才真正提交到 query，减少请求次数。
               void updateQuery((prev) => ({
                 ...prev,
                 keyword: draftKeyword.trim(),
@@ -356,6 +370,7 @@ export function CoursesPage() {
         </div>
 
         <Table
+          // 分页统一交给底部 PaginationBar，便于保持所有列表页交互一致。
           rowKey="id"
           dataSource={data?.list ?? []}
           columns={columns}
@@ -397,6 +412,7 @@ export function CoursesPage() {
           initialValues={DEFAULT_COURSE_FORM}
           className="pt-4"
         >
+          {/* 表单按“基础信息在上、枚举/数字字段在下”的方式分组，降低阅读成本。 */}
           <div className="grid gap-x-5 md:grid-cols-2">
             <Form.Item
               label="课程名称"

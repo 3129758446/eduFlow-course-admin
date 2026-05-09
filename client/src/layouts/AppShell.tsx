@@ -1,3 +1,10 @@
+/* 
+模块：应用布局壳
+定位：提供侧边导航/顶部用户菜单/错误提醒容器，插槽渲染页面内容
+数据流：父级通过 props 传入当前路由 key、用户信息与错误消息及导航/退出回调
+用法：受保护路由包裹 Outlet，集中管理导航与退出确认
+学习要点：导航前清空全局错误；退出时弹出二次确认 Popconfirm
+*/
 import {
   BarChartOutlined,
   BookOutlined,
@@ -79,6 +86,7 @@ export function AppShell({
         }}
       >
         <div className="flex h-full flex-col px-3 py-5">
+          {/* 左侧区域分成品牌头部与导航菜单两部分，结构和后台系统习惯一致。 */}
           <div className="border-b-4 border-[#222] px-3 pb-4">
             <div className="flex items-center gap-3 text-slate-900">
               <span className="text-4xl">🎓</span>
@@ -89,6 +97,7 @@ export function AppShell({
           </div>
 
           <Menu
+            // 菜单项来源于 navItems 配置，后续新增页面时只需要补配置即可。
             mode="inline"
             selectedKeys={[route === "login" ? "dashboard" : route]}
             items={navItems.map((item) => ({
@@ -122,6 +131,7 @@ export function AppShell({
             />
 
             <Popconfirm
+              // 退出登录既出现在下拉菜单中，又由 Popconfirm 包裹，避免误触直接退出。
               title="确认退出登录吗？"
               description="退出后需要重新登录才能继续操作。"
               icon={<QuestionCircleOutlined className="text-amber-500" />}
@@ -153,7 +163,9 @@ export function AppShell({
                   <span className="inline-flex items-center gap-2.5">
                     <UserOutlined className="text-2xl text-violet-800" />
                     <span className="text-xl font-bold">
-                      {parseMaybeChinese(user.name || user.username || "管理员")}
+                      {parseMaybeChinese(
+                        user.name || user.username || "管理员",
+                      )}
                     </span>
                     <DownOutlined className="text-xs" />
                   </span>
@@ -169,6 +181,7 @@ export function AppShell({
           className="px-6 pb-8 pt-6 xl:px-8"
           style={{ background: "transparent" }}
         >
+          {/* 错误提示固定放在内容区顶部，让各业务页不用重复写 Alert。 */}
           {error ? (
             <Alert
               message={error}

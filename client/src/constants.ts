@@ -1,3 +1,8 @@
+/* 
+模块：常量与默认表单值
+定位：课程/学生状态枚举与表单初始值
+用法：页面/Store 直接引用，避免魔法字符串散落
+*/
 import type { CourseFormValue, StudentFormValue } from './types';
 
 export const COURSE_STATUS_TEXT: Record<string, string> = {

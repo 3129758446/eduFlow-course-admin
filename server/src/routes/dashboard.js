@@ -1,3 +1,8 @@
+/* 
+模块：工作台路由
+接口：GET /api/dashboard（需鉴权）
+定位：汇总统计数据与图表所需数据（选课 Top、近 7 天活跃、学生状态、课程分类）
+*/
 import Router from '@koa/router';
 import db from '../database/db.js';
 import { authenticateToken } from '../middleware/auth.js';
@@ -6,6 +11,7 @@ import { success } from '../utils/response.js';
 const router = new Router();
 
 router.get('/', authenticateToken, async (ctx) => {
+  // 先计算卡片区统计值，后面图表区会复用相同的数据口径。
   const totalCourses = db.prepare('SELECT COUNT(*) as count FROM courses').get().count;
   const publishedCourses = db.prepare("SELECT COUNT(*) as count FROM courses WHERE status = 'published'").get().count;
   const totalStudents = db.prepare('SELECT COUNT(*) as count FROM students').get().count;
@@ -21,6 +27,7 @@ router.get('/', authenticateToken, async (ctx) => {
 
   const today = new Date();
   const activity = [];
+  // 按最近 7 天逐日回溯，生成折线图所需的时间序列数据。
   for (let i = 6; i >= 0; i--) {
     const date = new Date(today);
     date.setDate(date.getDate() - i);
@@ -40,6 +47,7 @@ router.get('/', authenticateToken, async (ctx) => {
     });
   }
 
+  // 饼图数据直接在服务端整理成前端可消费的 { name, value } 结构。
   const statusDist = [
     { name: '活跃学生', value: activeStudents },
     { name: '非活跃学生', value: totalStudents - activeStudents },

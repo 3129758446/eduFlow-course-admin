@@ -1,3 +1,9 @@
+/* 
+模块：Koa 服务入口
+定位：注册中间件/路由，初始化 SQLite，并静态托管 client/dist
+数据流：/api/* -> 各业务路由；非 /api 的 GET 根据路径回落到 dist/index.html 以支持前端路由
+用法：npm run dev 启动；前端通过 Vite 代理到 3000 端口
+*/
 import Koa from 'koa';
 import Router from '@koa/router';
 import cors from '@koa/cors';
@@ -43,6 +49,7 @@ app.use(async (ctx, next) => {
   try {
     await next();
   } catch (err) {
+    // 兜底错误处理：把未捕获异常统一转成约定的 JSON 响应结构。
     const status = err.status || 500;
     ctx.status = status;
     ctx.body = { code: status, msg: err.message || '服务器内部错误', data: null };
@@ -61,6 +68,7 @@ app.use(router.routes());
 app.use(router.allowedMethods());
 
 app.use(async (ctx, next) => {
+  // 这里只处理前端静态资源和 SPA 路由回退，API 请求继续走业务路由。
   if (ctx.method !== 'GET' || ctx.path.startsWith('/api')) {
     await next();
     return;
@@ -68,6 +76,7 @@ app.use(async (ctx, next) => {
 
   const requestedPath = ctx.path === '/' ? 'index.html' : ctx.path.slice(1);
   const filePath = join(DIST_ROOT, requestedPath);
+  // 如果请求的静态资源不存在，则回退到 index.html，让前端路由自己接管。
   const targetPath = existsSync(filePath) ? filePath : join(DIST_ROOT, 'index.html');
   const ext = extname(targetPath).toLowerCase();
 

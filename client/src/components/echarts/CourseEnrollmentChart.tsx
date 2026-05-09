@@ -1,3 +1,8 @@
+/* 
+模块：课程选课人数柱状图
+定位：展示 TOP 列表的课程选课人数对比
+数据：items[{ name, value }]
+*/
 import { useMemo } from "react";
 import { parseMaybeChinese, trimLabel } from "../../utils/text";
 import { ChartContainer, type ChartOption } from "./chart-core";

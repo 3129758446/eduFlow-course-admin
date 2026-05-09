@@ -1,3 +1,8 @@
+/* 
+模块：课程分类分布饼图
+定位：展示课程分类与占比，并在圆心展示总数
+数据：items[{ name, value }]
+*/
 import { useMemo } from "react";
 import { parseMaybeChinese, trimLabel } from "../../utils/text";
 import { ChartContainer, type ChartOption } from "./chart-core";
@@ -29,6 +34,7 @@ export function CourseCategoryChart({
         {
           name: "课程分类",
           type: "pie",
+          // 环形图 + 中心文字的组合更适合展示“分布 + 总量”。
           radius: ["42%", "68%"],
           center: ["36%", "50%"],
           avoidLabelOverlap: true,
@@ -51,6 +57,7 @@ export function CourseCategoryChart({
         type: "group",
         left: "31%",
         top: "43%",
+        // graphic 额外叠加中心文案，避免把总数塞进 tooltip 才能看到。
         children: [
           {
             type: "text",

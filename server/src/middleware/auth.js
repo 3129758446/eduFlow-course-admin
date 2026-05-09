@@ -1,3 +1,8 @@
+/* 
+模块：认证中间件
+定位：校验 Authorization: Bearer <token>，验证通过将用户写入 ctx.state.user
+要点：统一使用 JWT_SECRET；失败时返回统一 JSON 错误
+*/
 import jwt from 'jsonwebtoken';
 
 const JWT_SECRET = 'homework_secret_key_2024';

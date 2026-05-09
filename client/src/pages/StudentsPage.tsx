@@ -1,3 +1,9 @@
+/* 
+模块：学生管理页面
+定位：学生列表/筛选/分页 + 新增/编辑/删除 交互聚合页，支持学号唯一性校验与选课多选
+数据流：由 useStudentStore 统一管理；支持数据（班级/课程）并行拉取
+用法：表单使用 antd Form 与 Checkbox.Group 渲染课程多选
+*/
 import {
   DeleteOutlined,
   EditOutlined,
@@ -71,7 +77,7 @@ export function StudentsPage() {
       closeForm: state.closeForm,
       submitForm: state.submitForm,
       deleteStudentById: state.deleteStudentById,
-    }))
+    })),
   );
 
   const courseNameMap = useMemo(
@@ -91,11 +97,13 @@ export function StudentsPage() {
   }, [setGlobalError]);
 
   const handleOpenCreate = () => {
+    // 新增时重置成默认表单，避免编辑过的学生信息污染下一次新增。
     form.setFieldsValue(DEFAULT_STUDENT_FORM);
     openCreate();
   };
 
   const handleOpenEdit = async (id: number) => {
+    // 编辑场景以详情接口返回为准，避免列表数据字段不全或不是最新值。
     const detail = await openEdit(id);
     if (!detail) {
       return;
@@ -119,6 +127,7 @@ export function StudentsPage() {
     } catch (error) {
       if (error instanceof Error) {
         const message = appErrorMessage(error);
+        // 如果后端返回“学号已存在”，把错误精确回填到学号字段，用户更容易定位问题。
         if (message.includes("学号已存在")) {
           form.setFields([{ name: "student_no", errors: [message] }]);
         }
@@ -129,6 +138,7 @@ export function StudentsPage() {
 
   const columns = useMemo<ColumnsType<Student>>(
     () => [
+      // 学生列表把“身份信息、联系方式、课程关系、状态、操作”分成独立列，信息密度更均衡。
       {
         title: "姓名",
         dataIndex: "name",
@@ -172,16 +182,19 @@ export function StudentsPage() {
         width: "20%",
         ellipsis: true,
         render: (_, student) => {
+          // 列表里只保存 course_ids，页面层通过 courseNameMap 映射成人可读课程名。
           const selectedCourses = student.course_ids.length
             ? student.course_ids
                 .map((id) => courseNameMap[id] || `课程 ${id}`)
                 .join("、")
             : "未选课程";
           return (
-            <div 
+            <div
               className="text-base text-slate-700 w-full whitespace-nowrap overflow-hidden text-ellipsis"
               title={selectedCourses}
-            >{selectedCourses}</div>
+            >
+              {selectedCourses}
+            </div>
           );
         },
       },
@@ -245,9 +258,7 @@ export function StudentsPage() {
   return (
     <div className="w-full space-y-6">
       <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-        <h2 className="m-0 text-4xl font-extrabold text-slate-900">
-          学生管理
-        </h2>
+        <h2 className="m-0 text-4xl font-extrabold text-slate-900">学生管理</h2>
         <Button
           type="primary"
           icon={<PlusOutlined />}
@@ -259,6 +270,7 @@ export function StudentsPage() {
       </div>
 
       <Card title="" className="manage-card">
+        {/* 查询区与课程页保持同构，用户切换模块时不需要重新适应交互。 */}
         <div className="mb-8 flex w-fit max-w-full flex-wrap items-center gap-4">
           <Input
             size="large"
@@ -267,6 +279,7 @@ export function StudentsPage() {
             prefix={<SearchOutlined className="text-slate-400" />}
             onChange={(event) => setDraftKeyword(event.target.value)}
             onPressEnter={() =>
+              // 搜索输入与真正请求参数分离，只有确认搜索时才刷新列表。
               void updateQuery((prev) => ({
                 ...prev,
                 keyword: draftKeyword.trim(),
@@ -331,13 +344,14 @@ export function StudentsPage() {
             onClick={() => {
               void resetFilters();
             }}
-           className="w-25! rounded-3.5! border-4! border-slate-900! text-slate-900! hover:border-[#222]! hover:text-slate-900!"
+            className="w-25! rounded-3.5! border-4! border-slate-900! text-slate-900! hover:border-[#222]! hover:text-slate-900!"
           >
             重置
           </Button>
         </div>
 
         <Table
+          // 学生表格同样关闭内置分页，统一用外部 PaginationBar 管理页码与 pageSize。
           rowKey="id"
           dataSource={data?.list ?? []}
           columns={columns}
@@ -379,6 +393,7 @@ export function StudentsPage() {
           initialValues={DEFAULT_STUDENT_FORM}
           className="pt-4"
         >
+          {/* 表单前半部分是基础身份字段，后半部分是联系方式与课程关系字段。 */}
           <div className="grid gap-x-5 md:grid-cols-2">
             <Form.Item
               label="姓名"
@@ -397,6 +412,7 @@ export function StudentsPage() {
               name="student_no"
               validateTrigger="onBlur"
               rules={[
+                // 先做格式校验，再做异步唯一性校验，避免无效输入也去请求后端。
                 { required: true, message: "请输入学号" },
                 { pattern: /^\d{8}$/, message: "学号格式应为 8 位数字" },
                 {
@@ -404,7 +420,11 @@ export function StudentsPage() {
                     const studentNo = value?.trim();
                     if (!studentNo || !/^\d{8}$/.test(studentNo)) return;
 
-                    const result = await checkStudentNoUnique(studentNo, editingId ?? undefined);
+                    // 前端失焦时先做一次唯一性预检查，减少提交后才报错的挫败感。
+                    const result = await checkStudentNoUnique(
+                      studentNo,
+                      editingId ?? undefined,
+                    );
                     if (!result.unique) {
                       throw new Error("学号已存在");
                     }
@@ -447,7 +467,10 @@ export function StudentsPage() {
               name="phone"
               rules={[
                 { required: true, message: "请输入手机号" },
-                { pattern: /^1[3-9]\d{9}$/, message: "请输入正确的 11 位手机号" },
+                {
+                  pattern: /^1[3-9]\d{9}$/,
+                  message: "请输入正确的 11 位手机号",
+                },
               ]}
             >
               <Input placeholder="请输入手机号" />
@@ -467,6 +490,7 @@ export function StudentsPage() {
               name="course_ids"
               className="md:col-span-2"
               rules={[
+                // 课程是多选关系字段，因此用自定义校验保证至少选择一门课程。
                 {
                   validator: (_, value?: number[]) =>
                     value?.length

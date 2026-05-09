@@ -1,3 +1,8 @@
+/* 
+模块：近 7 天学习活跃度折线图
+定位：展示每日学习人数与总时长趋势
+数据：items[{ date, label, students, duration }]
+*/
 import { useMemo } from "react";
 import { parseMaybeChinese } from "../../utils/text";
 import { ChartContainer, type ChartOption } from "./chart-core";

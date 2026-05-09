@@ -1,3 +1,8 @@
+/* 
+模块：学生状态分布饼图
+定位：展示活跃/非活跃学生比例，并在圆心展示总数
+数据：items[{ name, value }]
+*/
 import { useMemo } from "react";
 import { parseMaybeChinese, trimLabel } from "../../utils/text";
 import { ChartContainer, type ChartOption } from "./chart-core";

@@ -1,3 +1,10 @@
+/* 
+模块：学习总结仓库（Zustand）
+定位：管理服务端 Markdown 内容加载状态与错误透传
+数据流：fetchSummary() -> set(data)；错误通过 auth store 的 setGlobalError 展示
+对外：data, loading, refresh()
+用法：SummaryPage 挂载时调用 refresh()
+*/
 import { create } from 'zustand';
 import { fetchSummary } from '../api';
 import type { SummaryData } from '../types';

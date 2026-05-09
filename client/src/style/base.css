@@ -1,3 +1,8 @@
+/* 
+模块：全局样式（Tailwind + 自定义）
+定位：设置全局字体/背景，统一 antd 组件视觉风格，封装管理页表格与按钮风格
+用法：在 App.tsx 中全局引入
+*/
 @import "tailwindcss";
 
 :root {

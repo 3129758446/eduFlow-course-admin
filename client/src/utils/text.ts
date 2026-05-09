@@ -1,3 +1,8 @@
+/* 
+模块：文本与格式化工具
+定位：格式化百分比、统一错误消息、中文乱码兜底与截断
+用法：formatPercent/appErrorMessage/parseMaybeChinese/trimLabel
+*/
 export function formatPercent(value: number) {
   return `${Math.round(value)}%`;
 }

@@ -1,3 +1,14 @@
+/* 
+模块：前端 API 封装
+定位：集中声明与服务端交互的方法，统一查询参数构造与返回类型
+数据流：request<T>() -> Axios 实例（带 token 拦截） -> Koa 接口 -> 统一 ApiEnvelope 解包 data
+对外：登录、用户信息、工作台、课程（列表/详情/增改删/状态）、学生（列表/详情/增改删/校验）、总结
+用法：
+- 页面/Store 仅调用此处导出的函数，不直接拼接 URL；列表查询通过 Partial<Query> 传参
+- 复杂查询参数使用 URLSearchParams 确保空值不入参
+学习要点：
+- 将服务端统一响应格式在 request 中落一层校验，业务处只拿 data
+*/
 import type {
   Course,
   CourseFormValue,

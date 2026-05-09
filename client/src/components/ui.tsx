@@ -1,3 +1,8 @@
+/* 
+模块：通用 UI 组件
+定位：Card/StatCard/PaginationBar 等可复用展示与分页控件
+要点：基于 antd 进行样式包装，保持项目视觉统一
+*/
 import type { ReactNode } from 'react';
 import { Card as AntCard, Pagination, Statistic } from 'antd';
 

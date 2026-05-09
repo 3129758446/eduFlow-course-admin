@@ -1,3 +1,9 @@
+/* 
+模块：工作台页面
+定位：展示课程与学生统计概览与图表
+数据流：挂载时 useDashboardStore.refresh() 获取数据；失败显示 EmptyState
+用法：受保护路由下直接渲染，样式用卡片 + 自定义图表容器组合
+*/
 import {
   BarChartOutlined,
   FireOutlined,

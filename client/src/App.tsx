@@ -1,3 +1,8 @@
+/* 
+模块：应用入口（主题配置）
+定位：通过 Antd ConfigProvider 统一主题，挂载 AppRouterProvider
+要点：统一品牌色、圆角、控件尺寸与分页等组件样式，搭配全局 CSS 微调
+*/
 import { ConfigProvider, App as AntdApp } from 'antd';
 import { AppRouterProvider } from './router';
 import 'antd/dist/reset.css';
@@ -6,6 +11,7 @@ import './style/summary.css';
 
 function App() {
   return (
+    // 配置主题
     <ConfigProvider
       theme={{
         token: {

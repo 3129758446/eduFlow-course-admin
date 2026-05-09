@@ -1,3 +1,14 @@
+/* 
+模块：学生路由
+接口：
+- GET    /api/students            列表（搜索/筛选/分页/按课程过滤）
+- GET    /api/students/classes    班级列表
+- GET    /api/students/:id        详情（含已选课程简表）
+- POST   /api/students            新增（学号唯一、字段校验、课程有效性校验）
+- PUT    /api/students/:id        更新（同上）
+- DELETE /api/students/:id        删除
+要点：操作成功后同步回写 courses.student_count 以保证统计口径一致
+*/
 import Router from '@koa/router';
 import db from '../database/db.js';
 import { authenticateToken } from '../middleware/auth.js';
@@ -27,6 +38,7 @@ router.get('/', authenticateToken, async (ctx) => {
 
   let rows = db.prepare(`SELECT * FROM students ${where} ORDER BY created_at DESC`).all(...params);
 
+  // 因为 course_ids 存在 JSON 字符串列中，按课程筛选只能先取出后再做内存过滤。
   if (courseId) {
     rows = rows.filter((student) => {
       const ids = JSON.parse(student.course_ids || '[]');
@@ -79,6 +91,7 @@ router.get('/:id', authenticateToken, async (ctx) => {
 });
 
 router.post('/', authenticateToken, async (ctx) => {
+  // 新增与编辑共用同一套 payload 解析逻辑，保证前后端校验口径一致。
   const payload = parseStudentPayload(ctx.request.body);
   if (payload.error) {
     return fail(ctx, 400, payload.error);
@@ -107,6 +120,7 @@ router.post('/', authenticateToken, async (ctx) => {
     JSON.stringify(payload.course_ids)
   );
 
+  // 学生选课变化会影响课程统计卡片和图表，因此每次变更后都重算 student_count。
   updateCourseCounts();
 
   const student = db.prepare('SELECT * FROM students WHERE id = ?').get(result.lastInsertRowid);
@@ -122,6 +136,7 @@ router.put('/:id', authenticateToken, async (ctx) => {
     return fail(ctx, 404, '学生不存在');
   }
 
+  // 编辑场景允许缺省字段，parseStudentPayload 会回退到 existing 中的旧值。
   const payload = parseStudentPayload(ctx.request.body, existing);
   if (payload.error) {
     return fail(ctx, 400, payload.error);
@@ -177,6 +192,7 @@ function updateCourseCounts() {
   const courses = db.prepare('SELECT id FROM courses').all();
   const students = db.prepare('SELECT course_ids FROM students').all();
 
+  // 课程的 student_count 是冗余统计字段，用空间换取列表/图表查询速度。
   for (const course of courses) {
     const count = students.filter((student) => {
       const ids = JSON.parse(student.course_ids || '[]');
@@ -204,6 +220,7 @@ function parseStudentPayload(body = {}, existing = null) {
     course_ids: courseIds,
   };
 
+  // 这里集中完成必填、格式和枚举合法性校验，保持 POST/PUT 逻辑一致。
   if (!payload.name) {
     return { error: '学生姓名不能为空' };
   }
@@ -240,6 +257,7 @@ function normalizeCourseIds(value) {
     if (!Number.isInteger(id) || id <= 0) {
       return null;
     }
+    // 顺手去重，避免一个学生重复勾选同一课程。
     if (!ids.includes(id)) {
       ids.push(id);
     }
@@ -264,6 +282,7 @@ function findInvalidCourseIds(courseIds) {
   const rows = db.prepare(`SELECT id FROM courses WHERE id IN (${placeholders})`).all(...courseIds);
   const validIds = new Set(rows.map((row) => row.id));
 
+  // 返回非法 id 列表，便于后续扩展成更精细的错误提示。
   return courseIds.filter((id) => !validIds.has(id));
 }
 

@@ -1,3 +1,8 @@
+/* 
+模块：通用反馈组件
+定位：封装全屏加载、面板加载与空状态
+用法：根据页面/区域加载状态与异常选择性渲染
+*/
 import { Empty, Spin } from 'antd';
 
 export function LoadingScreen({ text }: { text: string }) {

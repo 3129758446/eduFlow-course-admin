@@ -1,3 +1,8 @@
+/* 
+模块：类型定义
+定位：统一声明接口返回/实体/查询与表单类型，服务端/前端口径一致
+要点：ApiEnvelope<T> 作为后端统一返回壳；Course/Student/Summary 等业务类型集中管理
+*/
 export type ApiEnvelope<T> = {
   code: number;
   msg: string;

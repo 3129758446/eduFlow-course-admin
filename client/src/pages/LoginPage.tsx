@@ -1,3 +1,9 @@
+/* 
+模块：登录页
+定位：提供用户名/密码登录表单与错误反馈，调用路由层传入的 onLogin
+数据流：提交 -> onLogin(username, password) -> 失败使用 setError 展示错误
+用法：受保护路由外单独路由，登录成功后由路由跳转到 /dashboard
+*/
 import { EyeOutlined, LockOutlined, UserOutlined } from '@ant-design/icons';
 import { Alert, Button, Form, Input } from 'antd';
 import { useState } from 'react';

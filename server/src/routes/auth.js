@@ -1,3 +1,10 @@
+/* 
+模块：认证路由
+接口：
+- POST /api/auth/login 账号密码登录，成功返回 { token, user }
+- GET  /api/auth/me    获取当前用户信息（需鉴权）
+要点：密码使用 bcrypt 校验；签发 7 天有效期的 JWT
+*/
 import Router from '@koa/router';
 import jwt from 'jsonwebtoken';
 import bcrypt from 'bcryptjs';
@@ -14,6 +21,7 @@ router.post('/login', async (ctx) => {
     return fail(ctx, 400, '请输入用户名和密码');
   }
 
+  // 用户名不存在和密码错误都返回相同提示，避免暴露账号是否存在。
   const user = db.prepare('SELECT * FROM users WHERE username = ?').get(username);
   if (!user) {
     return fail(ctx, 401, '用户名或密码错误');
@@ -30,11 +38,13 @@ router.post('/login', async (ctx) => {
     { expiresIn: '7d' }
   );
 
+  // 返回前剔除 password 字段，避免敏感信息泄漏到前端。
   const { password: _, ...userInfo } = user;
   success(ctx, { token, user: userInfo });
 });
 
 router.get('/me', authenticateToken, async (ctx) => {
+  // /me 的作用是“用 token 换当前用户信息”，前端冷启动时会依赖它恢复登录态。
   const user = db.prepare('SELECT id, username, name, role, avatar, created_at FROM users WHERE id = ?').get(ctx.state.user.id);
   if (!user) {
     return fail(ctx, 404, '用户不存在');

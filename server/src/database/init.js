@@ -1,3 +1,8 @@
+/* 
+模块：数据库初始化与 Mock
+定位：创建表结构、种子数据与近 7 天学习记录；提供刷新学习记录的工具
+要点：初始账户 admin/admin123；学生与课程存在多对多关系以 JSON 数组存 course_ids
+*/
 import db from './db.js';
 import bcrypt from 'bcryptjs';
 
