@@ -16,11 +16,16 @@ import type {
   CourseQuery,
   DashboardData,
   LoginResponse,
+  AccountUser,
+  RolePermissionData,
   StudentDetail,
   StudentFormValue,
   StudentListResponse,
   StudentQuery,
-  SummaryData,
+  Summary,
+  SummaryFormValue,
+  SummaryListResponse,
+  SummaryQuery,
   User,
 } from './types';
 import { request } from './utils/request';
@@ -37,6 +42,17 @@ export function login(params: { username: string; password: string }) {
 // 获取当前用户信息
 export function getCurrentUser() {
   return request<User>({ url: '/auth/me' });
+}
+
+export function changePassword(payload: {
+  oldPassword: string;
+  newPassword: string;
+}) {
+  return request<null>({
+    url: '/auth/password',
+    method: 'PATCH',
+    data: payload,
+  });
 }
 
 // 获取工作台数据
@@ -162,6 +178,82 @@ export function deleteStudent(id: number) {
   });
 }
 
-export function fetchSummary() {
-  return request<SummaryData>({ url: '/summary' });
+export function fetchSummaries(query: Partial<SummaryQuery>) {
+  const search = new URLSearchParams();
+  Object.entries(query).forEach(([key, value]) => {
+    if (value !== '' && value !== undefined && value !== null) {
+      search.set(key, String(value));
+    }
+  });
+  return request<SummaryListResponse>({ url: `/summary?${search.toString()}` });
+}
+
+export function fetchSummaryDetail(id: number) {
+  return request<Summary>({ url: `/summary/${id}` });
+}
+
+export function createSummary(payload: SummaryFormValue) {
+  return request<Summary>({
+    url: '/summary',
+    method: 'POST',
+    data: payload,
+  });
+}
+
+export function updateSummary(id: number, payload: SummaryFormValue) {
+  return request<Summary>({
+    url: `/summary/${id}`,
+    method: 'PUT',
+    data: payload,
+  });
+}
+
+export function deleteSummary(id: number) {
+  return request<null>({
+    url: `/summary/${id}`,
+    method: 'DELETE',
+  });
+}
+
+export function fetchAccounts() {
+  return request<AccountUser[]>({ url: '/system/users' });
+}
+
+export function updateAccountRole(id: number, role: string) {
+  return request<AccountUser>({
+    url: `/system/users/${id}/role`,
+    method: 'PATCH',
+    data: { role },
+  });
+}
+
+export function createAccount(payload: {
+  username: string;
+  name: string;
+  role: string;
+}) {
+  return request<AccountUser>({
+    url: '/system/users',
+    method: 'POST',
+    data: payload,
+  });
+}
+
+export function deleteAccount(id: number) {
+  return request<null>({
+    url: `/system/users/${id}`,
+    method: 'DELETE',
+  });
+}
+
+export function fetchRolePermissions() {
+  return request<RolePermissionData>({ url: '/system/roles' });
+}
+
+export function updateRolePermissions(role: string, permissions: string[]) {
+  return request<{ role: string; permissions: string[] }>({
+    url: `/system/roles/${role}/permissions`,
+    method: 'PUT',
+    data: { permissions },
+  });
 }

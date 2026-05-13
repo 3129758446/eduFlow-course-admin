@@ -9,8 +9,10 @@ import { Navigate, Outlet, useLocation, useNavigate } from "react-router-dom";
 import { LoadingScreen } from "../components/feedback";
 import { AppShell } from "../layouts/AppShell";
 import { LoginPage } from "../pages/LoginPage";
+import { AccountsPage } from "../pages/AccountsPage";
 import { CoursesPage } from "../pages/CoursesPage";
 import { DashboardPage } from "../pages/DashboardPage";
+import { RolesPage } from "../pages/RolesPage";
 import { StudentsPage } from "../pages/StudentsPage";
 import { SummaryPage } from "../pages/SummaryPage";
 import { ForbiddenPage } from "../pages/ForbiddenPage";
@@ -121,4 +123,12 @@ export function SummaryRouteElement() {
 
 export function ForbiddenRouteElement() {
   return <ForbiddenPage />;
+}
+
+export function AccountsRouteElement() {
+  return <AccountsPage />;
+}
+
+export function RolesRouteElement() {
+  return <RolesPage />;
 }

@@ -7,14 +7,27 @@
 */
 import {
   DownOutlined,
+  LockOutlined,
   LogoutOutlined,
   MenuOutlined,
   QuestionCircleOutlined,
   UserOutlined,
 } from "@ant-design/icons";
-import { Alert, Button, Dropdown, Layout, Menu, Popconfirm } from "antd";
+import {
+  Alert,
+  Button,
+  Dropdown,
+  Form,
+  Input,
+  Layout,
+  Menu,
+  Modal,
+  Popconfirm,
+  message,
+} from "antd";
 import type { MenuProps } from "antd";
 import { useState, type ReactNode } from "react";
+import { changePassword } from "../api";
 import type { RouteKey } from "../router";
 import { navItems } from "../router/nav-config";
 import type { User } from "../types";
@@ -37,14 +50,30 @@ export function AppShell({
   onLogout: () => void;
   children: ReactNode;
 }) {
+  const [passwordForm] = Form.useForm<{
+    oldPassword: string;
+    newPassword: string;
+    confirmPassword: string;
+  }>();
   const [logoutConfirmOpen, setLogoutConfirmOpen] = useState(false);
   const [siderCollapsed, setSiderCollapsed] = useState(false);
+  const [passwordModalOpen, setPasswordModalOpen] = useState(false);
+  const [passwordSubmitting, setPasswordSubmitting] = useState(false);
 
   const visibleNavItems = navItems.filter((item) =>
     user.permissions.includes(item.permission),
   );
 
   const userMenuItems: MenuProps["items"] = [
+    {
+      key: "password",
+      icon: <LockOutlined />,
+      label: "修改密码",
+      onClick: () => {
+        passwordForm.resetFields();
+        setPasswordModalOpen(true);
+      },
+    },
     {
       key: "logout",
       icon: <LogoutOutlined />,
@@ -53,6 +82,24 @@ export function AppShell({
       onClick: () => setLogoutConfirmOpen(true),
     },
   ];
+
+  const handleChangePassword = async () => {
+    const values = await passwordForm.validateFields();
+    setPasswordSubmitting(true);
+    try {
+      await changePassword({
+        oldPassword: values.oldPassword,
+        newPassword: values.newPassword,
+      });
+      message.success("密码已修改");
+      setPasswordModalOpen(false);
+      passwordForm.resetFields();
+    } catch (error) {
+      message.error(error instanceof Error ? error.message : "密码修改失败");
+    } finally {
+      setPasswordSubmitting(false);
+    }
+  };
 
   return (
     <Layout className="min-h-screen bg-[repeating-linear-gradient(135deg,#ffffff_0,#ffffff_34px,#f6f3ee_34px,#f6f3ee_36px)]">
@@ -183,6 +230,62 @@ export function AppShell({
           <div className="w-full min-w-0">{children}</div>
         </Content>
       </Layout>
+      <Modal
+        open={passwordModalOpen}
+        title="修改密码"
+        onCancel={() => {
+          if (!passwordSubmitting) {
+            setPasswordModalOpen(false);
+          }
+        }}
+        onOk={() => {
+          void handleChangePassword();
+        }}
+        confirmLoading={passwordSubmitting}
+        okText="保存"
+        cancelText="取消"
+        centered
+        destroyOnHidden
+        className="manage-modal"
+      >
+        <Form form={passwordForm} layout="vertical" className="pt-4">
+          <Form.Item
+            label="原密码"
+            name="oldPassword"
+            rules={[{ required: true, message: "请输入原密码" }]}
+          >
+            <Input.Password placeholder="请输入原密码" />
+          </Form.Item>
+          <Form.Item
+            label="新密码"
+            name="newPassword"
+            rules={[
+              { required: true, message: "请输入新密码" },
+              { min: 6, message: "新密码至少需要 6 位" },
+            ]}
+          >
+            <Input.Password placeholder="请输入新密码" />
+          </Form.Item>
+          <Form.Item
+            label="确认新密码"
+            name="confirmPassword"
+            dependencies={["newPassword"]}
+            rules={[
+              { required: true, message: "请再次输入新密码" },
+              ({ getFieldValue }) => ({
+                validator(_, value) {
+                  if (!value || getFieldValue("newPassword") === value) {
+                    return Promise.resolve();
+                  }
+                  return Promise.reject(new Error("两次输入的新密码不一致"));
+                },
+              }),
+            ]}
+          >
+            <Input.Password placeholder="请再次输入新密码" />
+          </Form.Item>
+        </Form>
+      </Modal>
     </Layout>
   );
 }

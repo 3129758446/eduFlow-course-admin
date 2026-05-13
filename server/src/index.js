@@ -17,6 +17,7 @@ import dashboardRoutes from './routes/dashboard.js';
 import courseRoutes from './routes/courses.js';
 import studentRoutes from './routes/students.js';
 import summaryRoutes from './routes/summary.js';
+import systemRoutes from './routes/system.js';
 import staticRoutes from './routes/static.js';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -62,6 +63,7 @@ router.use('/api/dashboard', dashboardRoutes.routes());
 router.use('/api/courses', courseRoutes.routes());
 router.use('/api/students', studentRoutes.routes());
 router.use('/api/summary', summaryRoutes.routes());
+router.use('/api/system', systemRoutes.routes());
 router.use('/api/static', staticRoutes.routes());
 
 app.use(router.routes());

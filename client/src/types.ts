@@ -125,6 +125,58 @@ export type StudentFormValue = {
   course_ids: number[];
 };
 
-export type SummaryData = {
+export type Summary = {
+  id: number;
+  title: string;
   content: string;
+  created_at: string;
+  updated_at: string;
+};
+
+export type SummaryListItem = Omit<Summary, 'content'>;
+
+export type SummaryListResponse = {
+  list: SummaryListItem[];
+  total: number;
+  page: number;
+  pageSize: number;
+};
+
+export type SummaryQuery = {
+  keyword: string;
+  page: number;
+  pageSize: number;
+};
+
+export type SummaryFormValue = {
+  title: string;
+  content: string;
+};
+
+export type AccountUser = Pick<
+  User,
+  'id' | 'username' | 'name' | 'role' | 'avatar' | 'created_at'
+>;
+
+export type Role = {
+  id: number;
+  code: string;
+  name: string;
+  description: string;
+  created_at: string;
+  permissions: string[];
+};
+
+export type SystemPermission = {
+  id: number;
+  code: string;
+  name: string;
+  module: string;
+  module_name: string;
+  sort_order: number;
+};
+
+export type RolePermissionData = {
+  roles: Role[];
+  permissions: SystemPermission[];
 };

@@ -56,4 +56,28 @@ router.get('/me', authenticateToken, async (ctx) => {
   success(ctx, user);
 });
 
+router.patch('/password', authenticateToken, async (ctx) => {
+  const oldPassword = String(ctx.request.body?.oldPassword ?? '');
+  const newPassword = String(ctx.request.body?.newPassword ?? '');
+
+  if (!oldPassword || !newPassword) {
+    return fail(ctx, 400, '原密码和新密码不能为空');
+  }
+  if (newPassword.length < 6) {
+    return fail(ctx, 400, '新密码至少需要 6 位');
+  }
+
+  const user = db.prepare('SELECT id, password FROM users WHERE id = ?').get(ctx.state.user.id);
+  if (!user) {
+    return fail(ctx, 404, '用户不存在');
+  }
+  if (!bcrypt.compareSync(oldPassword, user.password)) {
+    return fail(ctx, 400, '原密码不正确');
+  }
+
+  db.prepare('UPDATE users SET password = ? WHERE id = ?')
+    .run(bcrypt.hashSync(newPassword, 10), user.id);
+  success(ctx, null, '密码修改成功');
+});
+
 export default router;

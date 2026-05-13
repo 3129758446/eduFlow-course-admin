@@ -52,8 +52,26 @@ function extractCodeBlock(children: ReactNode) {
 
   return {
     code: getTextContent(props.children).replace(/\n$/, ""),
-    lang: match?.[1] ?? "text",
+    lang: normalizeCodeLang(match?.[1]),
   };
+}
+
+function normalizeCodeLang(lang?: string) {
+  if (!lang) return "javascript";
+
+  const aliases: Record<string, string> = {
+    js: "javascript",
+    jsx: "jsx",
+    ts: "typescript",
+    tsx: "tsx",
+    shell: "bash",
+    sh: "bash",
+    cmd: "bash",
+    json5: "json",
+    md: "markdown",
+  };
+
+  return aliases[lang] ?? lang;
 }
 
 export function MarkdownRenderer({ content }: { content: string }) {
@@ -120,11 +138,21 @@ function CodeBlock({ code, lang }: { code: string; lang: string }) {
           language={lang}
           style={oneDark}
           PreTag="div"
+          showLineNumbers
+          wrapLongLines
           customStyle={{
             margin: 0,
             padding: 0,
             background: "transparent",
             fontSize: "15px",
+          }}
+          lineNumberStyle={{
+            minWidth: "2.8em",
+            paddingRight: "16px",
+            color: "#7f8ea3",
+            opacity: 0.85,
+            textAlign: "right",
+            userSelect: "none",
           }}
           codeTagProps={{
             style: {

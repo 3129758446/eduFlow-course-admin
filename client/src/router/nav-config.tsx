@@ -1,7 +1,14 @@
+/*
+模块：侧边栏菜单配置
+定位：把菜单路径、图标、文案和所需权限集中配置，AppShell 只负责过滤和渲染
+好处：新增受权限控制的页面时，只需要补一条配置和对应路由。
+*/
 import {
   BarChartOutlined,
   BookOutlined,
   FileTextOutlined,
+  SafetyCertificateOutlined,
+  SolutionOutlined,
   TeamOutlined,
 } from "@ant-design/icons";
 import type { ReactNode } from "react";
@@ -44,6 +51,20 @@ export const navItems: NavItem[] = [
     icon: <FileTextOutlined />,
     label: "学习总结",
     permission: PERMISSIONS.SUMMARY_VIEW,
+  },
+  {
+    key: "accounts",
+    path: "/accounts",
+    icon: <SolutionOutlined />,
+    label: "账号管理",
+    permission: PERMISSIONS.ACCOUNTS_VIEW,
+  },
+  {
+    key: "roles",
+    path: "/roles",
+    icon: <SafetyCertificateOutlined />,
+    label: "角色权限",
+    permission: PERMISSIONS.ROLES_VIEW,
   },
 ];
 
