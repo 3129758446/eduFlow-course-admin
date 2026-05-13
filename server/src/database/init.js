@@ -187,8 +187,15 @@ function ensureDemoUsers() {
   const users = [
     { username: 'admin', password: 'admin123', name: '管理员', role: 'admin' },
     { username: 'teacher', password: 'teacher123', name: '教师账号', role: 'teacher' },
-    { username: 'viewer', password: 'viewer123', name: '只读账号', role: 'viewer' },
+    { username: 'student', password: 'student123', name: '学生账号', role: 'student' },
   ];
+  const studentPassword = bcrypt.hashSync('student123', 10);
+  db.prepare(`
+    UPDATE users
+    SET username = ?, password = ?, name = ?, role = ?
+    WHERE username = ? AND NOT EXISTS (SELECT 1 FROM users WHERE username = ?)
+  `).run('student', studentPassword, '学生账号', 'student', 'viewer', 'student');
+
   const insertUser = db.prepare(`
     INSERT OR IGNORE INTO users (username, password, name, role) VALUES (?, ?, ?, ?)
   `);

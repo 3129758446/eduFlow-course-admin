@@ -14,7 +14,13 @@ export function RequirePermission({
   const hasPermission = useAuthStore((state) => state.hasPermission);
 
   if (!hasPermission(code)) {
-    return <Navigate to="/403" replace state={{ from: location.pathname }} />;
+    return (
+      <Navigate
+        to="/403"
+        replace
+        state={{ from: location.pathname, requiredPermission: code }}
+      />
+    );
   }
 
   return children;

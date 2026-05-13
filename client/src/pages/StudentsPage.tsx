@@ -38,6 +38,12 @@ import { appErrorMessage, parseMaybeChinese } from "../utils/text";
 export function StudentsPage() {
   const [form] = Form.useForm<StudentFormValue>();
   const setGlobalError = useAuthStore((state) => state.setGlobalError);
+  const canOperateStudent = useAuthStore((state) =>
+    state.hasAnyPermission([
+      PERMISSIONS.STUDENTS_UPDATE,
+      PERMISSIONS.STUDENTS_DELETE,
+    ]),
+  );
   const {
     data,
     loading,
@@ -260,6 +266,13 @@ export function StudentsPage() {
     ],
     [courseNameMap, deleteStudentById, deletingId, handleOpenEdit],
   );
+  const visibleColumns = useMemo(
+    () =>
+      canOperateStudent
+        ? columns
+        : columns.filter((column) => column.key !== "actions"),
+    [canOperateStudent, columns],
+  );
 
   return (
     <div className="w-full space-y-6">
@@ -362,7 +375,7 @@ export function StudentsPage() {
           // 学生表格同样关闭内置分页，统一用外部 PaginationBar 管理页码与 pageSize。
           rowKey="id"
           dataSource={data?.list ?? []}
-          columns={columns}
+          columns={visibleColumns}
           loading={loading}
           pagination={false}
           scroll={{ x: 800 }}

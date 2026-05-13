@@ -78,7 +78,9 @@ export function LoginPage({
           </Button>
         </Form>
 
-        <p className="mb-0 mt-4! text-center text-lg text-slate-400 md:text-xl">测试账号：admin / admin123</p>
+        <p className="mb-0 mt-4! text-center text-lg text-slate-400 md:text-xl">
+          测试账号：admin / admin123  teacher / teacher123 | student / student123
+          </p>
       </div>
     </div>
   );

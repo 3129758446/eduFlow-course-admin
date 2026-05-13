@@ -39,6 +39,12 @@ import { parseMaybeChinese } from "../utils/text";
 export function CoursesPage() {
   const [form] = Form.useForm<CourseFormValue>();
   const setGlobalError = useAuthStore((state) => state.setGlobalError);
+  const canOperateCourse = useAuthStore((state) =>
+    state.hasAnyPermission([
+      PERMISSIONS.COURSES_UPDATE,
+      PERMISSIONS.COURSES_DELETE,
+    ]),
+  );
   const {
     data,
     loading,
@@ -246,6 +252,8 @@ export function CoursesPage() {
               >
                 编辑
               </Button>
+            </Permission>
+            <Permission code={PERMISSIONS.COURSES_UPDATE}>
               <Popconfirm
                 title={
                   course.status === "published"
@@ -287,6 +295,13 @@ export function CoursesPage() {
       },
     ],
     [deleteCourseById, handleOpenEdit, toggleCourseStatusById, updateQuery],
+  );
+  const visibleColumns = useMemo(
+    () =>
+      canOperateCourse
+        ? columns
+        : columns.filter((column) => column.key !== "actions"),
+    [canOperateCourse, columns],
   );
 
   return (
@@ -390,7 +405,7 @@ export function CoursesPage() {
           // 分页统一交给底部 PaginationBar，便于保持所有列表页交互一致。
           rowKey="id"
           dataSource={data?.list ?? []}
-          columns={columns}
+          columns={visibleColumns}
           loading={loading}
           pagination={false}
           scroll={{ x: 800 }}
