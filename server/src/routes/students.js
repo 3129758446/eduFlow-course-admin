@@ -11,12 +11,13 @@
 */
 import Router from '@koa/router';
 import db from '../database/db.js';
-import { authenticateToken } from '../middleware/auth.js';
+import { authenticateToken, requirePermission } from '../middleware/auth.js';
+import { PERMISSIONS } from '../permissions.js';
 import { success, fail } from '../utils/response.js';
 
 const router = new Router();
 
-router.get('/', authenticateToken, async (ctx) => {
+router.get('/', authenticateToken, requirePermission(PERMISSIONS.STUDENTS_VIEW), async (ctx) => {
   const { keyword = '', className = '', status = '', courseId = '', page = 1, pageSize = 10 } = ctx.query;
   const offset = (Number(page) - 1) * Number(pageSize);
 
@@ -55,14 +56,14 @@ router.get('/', authenticateToken, async (ctx) => {
   success(ctx, { list, total, page: Number(page), pageSize: Number(pageSize) });
 });
 
-router.get('/classes', authenticateToken, async (ctx) => {
+router.get('/classes', authenticateToken, requirePermission(PERMISSIONS.STUDENTS_VIEW), async (ctx) => {
   const classes = db.prepare("SELECT DISTINCT class_name FROM students WHERE class_name != '' ORDER BY class_name")
     .all()
     .map((row) => row.class_name);
   success(ctx, classes);
 });
 
-router.get('/check-no', authenticateToken, async (ctx) => {
+router.get('/check-no', authenticateToken, requirePermission(PERMISSIONS.STUDENTS_UPDATE), async (ctx) => {
   const studentNo = normalizeText(ctx.query.student_no);
   const excludeId = Number(ctx.query.excludeId || 0);
 
@@ -77,7 +78,7 @@ router.get('/check-no', authenticateToken, async (ctx) => {
   success(ctx, { unique: !existing });
 });
 
-router.get('/:id', authenticateToken, async (ctx) => {
+router.get('/:id', authenticateToken, requirePermission(PERMISSIONS.STUDENTS_VIEW), async (ctx) => {
   const student = db.prepare('SELECT * FROM students WHERE id = ?').get(ctx.params.id);
   if (!student) {
     return fail(ctx, 404, '学生不存在');
@@ -90,7 +91,7 @@ router.get('/:id', authenticateToken, async (ctx) => {
   success(ctx, { ...student, enrolledCourses });
 });
 
-router.post('/', authenticateToken, async (ctx) => {
+router.post('/', authenticateToken, requirePermission(PERMISSIONS.STUDENTS_CREATE), async (ctx) => {
   // 新增与编辑共用同一套 payload 解析逻辑，保证前后端校验口径一致。
   const payload = parseStudentPayload(ctx.request.body);
   if (payload.error) {
@@ -130,7 +131,7 @@ router.post('/', authenticateToken, async (ctx) => {
   success(ctx, student);
 });
 
-router.put('/:id', authenticateToken, async (ctx) => {
+router.put('/:id', authenticateToken, requirePermission(PERMISSIONS.STUDENTS_UPDATE), async (ctx) => {
   const existing = db.prepare('SELECT * FROM students WHERE id = ?').get(ctx.params.id);
   if (!existing) {
     return fail(ctx, 404, '学生不存在');
@@ -176,7 +177,7 @@ router.put('/:id', authenticateToken, async (ctx) => {
   success(ctx, student);
 });
 
-router.delete('/:id', authenticateToken, async (ctx) => {
+router.delete('/:id', authenticateToken, requirePermission(PERMISSIONS.STUDENTS_DELETE), async (ctx) => {
   const existing = db.prepare('SELECT * FROM students WHERE id = ?').get(ctx.params.id);
   if (!existing) {
     return fail(ctx, 404, '学生不存在');

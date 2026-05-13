@@ -23,11 +23,13 @@ import {
   Tag,
 } from "antd";
 import type { ColumnsType } from "antd/es/table";
-import { useEffect, useMemo } from "react";
+import { useCallback, useEffect, useMemo } from "react";
 import { useShallow } from "zustand/react/shallow";
 import { checkStudentNoUnique } from "../api";
 import { DEFAULT_STUDENT_FORM, STUDENT_STATUS_TEXT } from "../constants";
+import { Permission } from "../components/Permission";
 import { Card, PaginationBar } from "../components/ui";
+import { PERMISSIONS } from "../permissions";
 import { useAuthStore } from "../stores/auth-store";
 import { useStudentStore } from "../stores/student-store";
 import type { Student, StudentFormValue } from "../types";
@@ -102,7 +104,7 @@ export function StudentsPage() {
     openCreate();
   };
 
-  const handleOpenEdit = async (id: number) => {
+  const handleOpenEdit = useCallback(async (id: number) => {
     // 编辑场景以详情接口返回为准，避免列表数据字段不全或不是最新值。
     const detail = await openEdit(id);
     if (!detail) {
@@ -118,7 +120,7 @@ export function StudentsPage() {
       status: detail.status,
       course_ids: detail.course_ids,
     });
-  };
+  }, [form, openEdit]);
 
   const handleSubmitForm = async () => {
     try {
@@ -219,54 +221,60 @@ export function StudentsPage() {
         width: "15%",
         render: (_, student) => (
           <Space className="list-actions" size={0} wrap>
-            <Button
-              type="link"
-              className="list-action"
-              icon={<EditOutlined />}
-              onClick={() => {
-                void handleOpenEdit(student.id);
-              }}
-            >
-              编辑
-            </Button>
-            <Popconfirm
-              title={`确认删除学生“${parseMaybeChinese(student.name)}”吗？`}
-              onConfirm={async () => {
-                await deleteStudentById(student.id);
-              }}
-              okButtonProps={{ loading: deletingId === student.id }}
-              okText="确认"
-              cancelText="取消"
-            >
+            <Permission code={PERMISSIONS.STUDENTS_UPDATE}>
               <Button
-                danger
                 type="link"
-                className="list-action list-action--danger"
-                icon={<DeleteOutlined />}
-                loading={deletingId === student.id}
+                className="list-action"
+                icon={<EditOutlined />}
+                onClick={() => {
+                  void handleOpenEdit(student.id);
+                }}
               >
-                删除
+                编辑
               </Button>
-            </Popconfirm>
+            </Permission>
+            <Permission code={PERMISSIONS.STUDENTS_DELETE}>
+              <Popconfirm
+                title={`确认删除学生“${parseMaybeChinese(student.name)}”吗？`}
+                onConfirm={async () => {
+                  await deleteStudentById(student.id);
+                }}
+                okButtonProps={{ loading: deletingId === student.id }}
+                okText="确认"
+                cancelText="取消"
+              >
+                <Button
+                  danger
+                  type="link"
+                  className="list-action list-action--danger"
+                  icon={<DeleteOutlined />}
+                  loading={deletingId === student.id}
+                >
+                  删除
+                </Button>
+              </Popconfirm>
+            </Permission>
           </Space>
         ),
       },
     ],
-    [courseNameMap, deleteStudentById, deletingId],
+    [courseNameMap, deleteStudentById, deletingId, handleOpenEdit],
   );
 
   return (
     <div className="w-full space-y-6">
       <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
         <h2 className="m-0 text-4xl font-extrabold text-slate-900">学生管理</h2>
-        <Button
-          type="primary"
-          icon={<PlusOutlined />}
-          onClick={handleOpenCreate}
-          className="manage-action-button bg-sky-200 text-lg font-bold text-slate-900"
-        >
-          新增学生
-        </Button>
+        <Permission code={PERMISSIONS.STUDENTS_CREATE}>
+          <Button
+            type="primary"
+            icon={<PlusOutlined />}
+            onClick={handleOpenCreate}
+            className="manage-action-button bg-sky-200 text-lg font-bold text-slate-900"
+          >
+            新增学生
+          </Button>
+        </Permission>
       </div>
 
       <Card title="" className="manage-card">

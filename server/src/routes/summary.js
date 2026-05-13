@@ -7,7 +7,8 @@ import Router from '@koa/router';
 import { readFileSync } from 'fs';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
-import { authenticateToken } from '../middleware/auth.js';
+import { authenticateToken, requirePermission } from '../middleware/auth.js';
+import { PERMISSIONS } from '../permissions.js';
 import { success, fail } from '../utils/response.js';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -15,7 +16,7 @@ const __dirname = dirname(__filename);
 
 const router = new Router();
 
-router.get('/', authenticateToken, async (ctx) => {
+router.get('/', authenticateToken, requirePermission(PERMISSIONS.SUMMARY_VIEW), async (ctx) => {
   try {
     const mdPath = join(__dirname, '../../data/summary.md');
     // 总结内容直接按文本读取，交给前端的 MarkdownRenderer 做解析和展示。

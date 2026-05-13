@@ -5,12 +5,13 @@
 */
 import Router from '@koa/router';
 import db from '../database/db.js';
-import { authenticateToken } from '../middleware/auth.js';
+import { authenticateToken, requirePermission } from '../middleware/auth.js';
+import { PERMISSIONS } from '../permissions.js';
 import { success } from '../utils/response.js';
 
 const router = new Router();
 
-router.get('/', authenticateToken, async (ctx) => {
+router.get('/', authenticateToken, requirePermission(PERMISSIONS.DASHBOARD_VIEW), async (ctx) => {
   // 先计算卡片区统计值，后面图表区会复用相同的数据口径。
   const totalCourses = db.prepare('SELECT COUNT(*) as count FROM courses').get().count;
   const publishedCourses = db.prepare("SELECT COUNT(*) as count FROM courses WHERE status = 'published'").get().count;

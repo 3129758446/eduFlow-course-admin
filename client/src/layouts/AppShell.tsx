@@ -6,20 +6,17 @@
 学习要点：导航前清空全局错误；退出时弹出二次确认 Popconfirm
 */
 import {
-  BarChartOutlined,
-  BookOutlined,
   DownOutlined,
-  FileTextOutlined,
   LogoutOutlined,
   MenuOutlined,
   QuestionCircleOutlined,
-  TeamOutlined,
   UserOutlined,
 } from "@ant-design/icons";
 import { Alert, Button, Dropdown, Layout, Menu, Popconfirm } from "antd";
 import type { MenuProps } from "antd";
 import { useState, type ReactNode } from "react";
 import type { RouteKey } from "../router";
+import { navItems } from "../router/nav-config";
 import type { User } from "../types";
 import { parseMaybeChinese } from "../utils/text";
 
@@ -43,16 +40,9 @@ export function AppShell({
   const [logoutConfirmOpen, setLogoutConfirmOpen] = useState(false);
   const [siderCollapsed, setSiderCollapsed] = useState(false);
 
-  const navItems: Array<{
-    key: Exclude<RouteKey, "login">;
-    icon: ReactNode;
-    label: string;
-  }> = [
-    { key: "dashboard", icon: <BarChartOutlined />, label: "工作台" },
-    { key: "courses", icon: <BookOutlined />, label: "课程管理" },
-    { key: "students", icon: <TeamOutlined />, label: "学生管理" },
-    { key: "summary", icon: <FileTextOutlined />, label: "学习总结" },
-  ];
+  const visibleNavItems = navItems.filter((item) =>
+    user.permissions.includes(item.permission),
+  );
 
   const userMenuItems: MenuProps["items"] = [
     {
@@ -97,10 +87,10 @@ export function AppShell({
           </div>
 
           <Menu
-            // 菜单项来源于 navItems 配置，后续新增页面时只需要补配置即可。
+            // 菜单项来源于权限配置，后续新增页面时只需要补配置即可。
             mode="inline"
             selectedKeys={[route === "login" ? "dashboard" : route]}
-            items={navItems.map((item) => ({
+            items={visibleNavItems.map((item) => ({
               key: item.key,
               icon: item.icon,
               label: item.label,

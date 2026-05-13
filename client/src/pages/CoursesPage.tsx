@@ -25,10 +25,12 @@ import {
   Tag,
 } from "antd";
 import type { ColumnsType } from "antd/es/table";
-import { useEffect, useMemo } from "react";
+import { useCallback, useEffect, useMemo } from "react";
 import { useShallow } from "zustand/react/shallow";
 import { COURSE_STATUS_TEXT, DEFAULT_COURSE_FORM } from "../constants";
+import { Permission } from "../components/Permission";
 import { Card, PaginationBar } from "../components/ui";
+import { PERMISSIONS } from "../permissions";
 import { useAuthStore } from "../stores/auth-store";
 import { useCourseStore } from "../stores/course-store";
 import type { Course, CourseFormValue } from "../types";
@@ -97,7 +99,7 @@ export function CoursesPage() {
 
   // 打开编辑弹窗
   // 编辑时先拉详情再回填表单，保证弹窗里显示的是服务端最新数据。
-  const handleOpenEdit = async (id: number) => {
+  const handleOpenEdit = useCallback(async (id: number) => {
     // 编辑先拉详情再回填表单，保证弹窗里显示的是服务端最新数据。
     const detail = await openEdit(id);
     if (!detail) {
@@ -112,7 +114,7 @@ export function CoursesPage() {
       status: detail.status,
       lesson_count: detail.lesson_count,
     });
-  };
+  }, [form, openEdit]);
 
   // 提交表单
   // 新增或编辑课程时，先校验表单，再提交到 store 处理。
@@ -233,68 +235,74 @@ export function CoursesPage() {
         width: "25%",
         render: (_, course) => (
           <Space className="list-actions" size={0} wrap>
-            <Button
-              type="link"
-              className="list-action"
-              icon={<EditOutlined />}
-              onClick={() => {
-                void handleOpenEdit(course.id);
-              }}
-            >
-              编辑
-            </Button>
-            <Popconfirm
-              title={
-                course.status === "published"
-                  ? `确认下架课程“${parseMaybeChinese(course.name)}”吗？`
-                  : `确认发布课程“${parseMaybeChinese(course.name)}”吗？`
-              }
-              onConfirm={async () => {
-                await toggleCourseStatusById(course.id);
-              }}
-              okText="确认"
-              cancelText="取消"
-            >
-              <Button type="link" className="list-action">
-                {course.status === "published" ? "下架" : "发布"}
-              </Button>
-            </Popconfirm>
-            <Popconfirm
-              title={`确认删除课程“${parseMaybeChinese(course.name)}”吗？`}
-              onConfirm={async () => {
-                await deleteCourseById(course.id);
-              }}
-              okText="确认"
-              cancelText="取消"
-            >
+            <Permission code={PERMISSIONS.COURSES_UPDATE}>
               <Button
-                danger
                 type="link"
-                className="list-action list-action--danger"
-                icon={<DeleteOutlined />}
+                className="list-action"
+                icon={<EditOutlined />}
+                onClick={() => {
+                  void handleOpenEdit(course.id);
+                }}
               >
-                删除
+                编辑
               </Button>
-            </Popconfirm>
+              <Popconfirm
+                title={
+                  course.status === "published"
+                    ? `确认下架课程“${parseMaybeChinese(course.name)}”吗？`
+                    : `确认发布课程“${parseMaybeChinese(course.name)}”吗？`
+                }
+                onConfirm={async () => {
+                  await toggleCourseStatusById(course.id);
+                }}
+                okText="确认"
+                cancelText="取消"
+              >
+                <Button type="link" className="list-action">
+                  {course.status === "published" ? "下架" : "发布"}
+                </Button>
+              </Popconfirm>
+            </Permission>
+            <Permission code={PERMISSIONS.COURSES_DELETE}>
+              <Popconfirm
+                title={`确认删除课程“${parseMaybeChinese(course.name)}”吗？`}
+                onConfirm={async () => {
+                  await deleteCourseById(course.id);
+                }}
+                okText="确认"
+                cancelText="取消"
+              >
+                <Button
+                  danger
+                  type="link"
+                  className="list-action list-action--danger"
+                  icon={<DeleteOutlined />}
+                >
+                  删除
+                </Button>
+              </Popconfirm>
+            </Permission>
           </Space>
         ),
       },
     ],
-    [deleteCourseById, toggleCourseStatusById],
+    [deleteCourseById, handleOpenEdit, toggleCourseStatusById, updateQuery],
   );
 
   return (
     <div className="w-full space-y-6">
       <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
         <h2 className="m-0 text-4xl font-extrabold text-slate-900">课程管理</h2>
-        <Button
-          type="primary"
-          icon={<PlusOutlined />}
-          onClick={handleOpenCreate}
-          className="manage-action-button bg-sky-200 text-lg font-bold text-slate-900"
-        >
-          新增课程
-        </Button>
+        <Permission code={PERMISSIONS.COURSES_CREATE}>
+          <Button
+            type="primary"
+            icon={<PlusOutlined />}
+            onClick={handleOpenCreate}
+            className="manage-action-button bg-sky-200 text-lg font-bold text-slate-900"
+          >
+            新增课程
+          </Button>
+        </Permission>
       </div>
 
       <Card title="" className="manage-card">

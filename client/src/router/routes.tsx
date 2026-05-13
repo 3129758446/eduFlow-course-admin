@@ -8,11 +8,15 @@ import { createBrowserRouter, Navigate } from 'react-router-dom';
 import {
   CoursesRouteElement,
   DashboardRouteElement,
+  DefaultRouteElement,
+  ForbiddenRouteElement,
   LoginRouteElement,
   ProtectedLayoutElement,
   StudentsRouteElement,
   SummaryRouteElement,
 } from './page-elements';
+import { PERMISSIONS } from '../permissions';
+import { RequirePermission } from './RequirePermission';
 
 export const router = createBrowserRouter([
   {
@@ -25,23 +29,43 @@ export const router = createBrowserRouter([
     children: [
       {
         index: true,
-        element: <Navigate to="/dashboard" replace />,
+        element: <DefaultRouteElement />,
       },
       {
         path: 'dashboard',
-        element: <DashboardRouteElement />,
+        element: (
+          <RequirePermission code={PERMISSIONS.DASHBOARD_VIEW}>
+            <DashboardRouteElement />
+          </RequirePermission>
+        ),
       },
       {
         path: 'courses',
-        element: <CoursesRouteElement />,
+        element: (
+          <RequirePermission code={PERMISSIONS.COURSES_VIEW}>
+            <CoursesRouteElement />
+          </RequirePermission>
+        ),
       },
       {
         path: 'students',
-        element: <StudentsRouteElement />,
+        element: (
+          <RequirePermission code={PERMISSIONS.STUDENTS_VIEW}>
+            <StudentsRouteElement />
+          </RequirePermission>
+        ),
       },
       {
         path: 'summary',
-        element: <SummaryRouteElement />,
+        element: (
+          <RequirePermission code={PERMISSIONS.SUMMARY_VIEW}>
+            <SummaryRouteElement />
+          </RequirePermission>
+        ),
+      },
+      {
+        path: '403',
+        element: <ForbiddenRouteElement />,
       },
     ],
   },

@@ -12,12 +12,13 @@
 */
 import Router from '@koa/router';
 import db from '../database/db.js';
-import { authenticateToken } from '../middleware/auth.js';
+import { authenticateToken, requirePermission } from '../middleware/auth.js';
+import { PERMISSIONS } from '../permissions.js';
 import { success, fail } from '../utils/response.js';
 
 const router = new Router();
 
-router.get('/', authenticateToken, async (ctx) => {
+router.get('/', authenticateToken, requirePermission(PERMISSIONS.COURSES_VIEW), async (ctx) => {
   const { keyword = '', status = '', category = '', page = 1, pageSize = 10, sortField = '', sortOrder = '' } = ctx.query;
   const offset = (Number(page) - 1) * Number(pageSize);
 
@@ -53,14 +54,14 @@ router.get('/', authenticateToken, async (ctx) => {
   success(ctx, { list, total, page: Number(page), pageSize: Number(pageSize) });
 });
 
-router.get('/categories', authenticateToken, async (ctx) => {
+router.get('/categories', authenticateToken, requirePermission(PERMISSIONS.COURSES_VIEW), async (ctx) => {
   const categories = db.prepare("SELECT DISTINCT category FROM courses WHERE category != '' ORDER BY category")
     .all()
     .map(r => r.category);
   success(ctx, categories);
 });
 
-router.get('/:id', authenticateToken, async (ctx) => {
+router.get('/:id', authenticateToken, requirePermission(PERMISSIONS.COURSES_VIEW), async (ctx) => {
   const course = db.prepare('SELECT * FROM courses WHERE id = ?').get(ctx.params.id);
   if (!course) {
     return fail(ctx, 404, '课程不存在');
@@ -68,7 +69,7 @@ router.get('/:id', authenticateToken, async (ctx) => {
   success(ctx, course);
 });
 
-router.post('/', authenticateToken, async (ctx) => {
+router.post('/', authenticateToken, requirePermission(PERMISSIONS.COURSES_CREATE), async (ctx) => {
   const { name, description, instructor, category, status, lesson_count } = ctx.request.body;
 
   if (!name) {
@@ -86,7 +87,7 @@ router.post('/', authenticateToken, async (ctx) => {
   success(ctx, course);
 });
 
-router.put('/:id', authenticateToken, async (ctx) => {
+router.put('/:id', authenticateToken, requirePermission(PERMISSIONS.COURSES_UPDATE), async (ctx) => {
   const existing = db.prepare('SELECT * FROM courses WHERE id = ?').get(ctx.params.id);
   if (!existing) {
     return fail(ctx, 404, '课程不存在');
@@ -112,7 +113,7 @@ router.put('/:id', authenticateToken, async (ctx) => {
   success(ctx, course);
 });
 
-router.delete('/:id', authenticateToken, async (ctx) => {
+router.delete('/:id', authenticateToken, requirePermission(PERMISSIONS.COURSES_DELETE), async (ctx) => {
   const existing = db.prepare('SELECT * FROM courses WHERE id = ?').get(ctx.params.id);
   if (!existing) {
     return fail(ctx, 404, '课程不存在');
@@ -122,7 +123,7 @@ router.delete('/:id', authenticateToken, async (ctx) => {
   success(ctx, null, '删除成功');
 });
 
-router.patch('/:id/status', authenticateToken, async (ctx) => {
+router.patch('/:id/status', authenticateToken, requirePermission(PERMISSIONS.COURSES_UPDATE), async (ctx) => {
   const existing = db.prepare('SELECT * FROM courses WHERE id = ?').get(ctx.params.id);
   if (!existing) {
     return fail(ctx, 404, '课程不存在');

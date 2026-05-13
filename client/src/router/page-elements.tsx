@@ -13,8 +13,10 @@ import { CoursesPage } from "../pages/CoursesPage";
 import { DashboardPage } from "../pages/DashboardPage";
 import { StudentsPage } from "../pages/StudentsPage";
 import { SummaryPage } from "../pages/SummaryPage";
+import { ForbiddenPage } from "../pages/ForbiddenPage";
 import { useRouterAuth } from "./use-router-auth";
 import { getRouteKeyFromPathname } from "./route-meta";
+import { getFirstAccessibleRoute } from "./nav-config";
 
 export function LoginRouteElement() {
   const { authLoading, token, user, globalError, setGlobalError, handleLogin } =
@@ -26,8 +28,13 @@ export function LoginRouteElement() {
   }
 
   if (token && user) {
-    // 已登录用户访问 /login 时直接送回工作台，避免重复登录。
-    return <Navigate to="/dashboard" replace />;
+    // 已登录用户访问 /login 时直接送回第一个有权限的页面，避免重复登录。
+    return (
+      <Navigate
+        to={getFirstAccessibleRoute(user.permissions) ?? "/403"}
+        replace
+      />
+    );
   }
 
   return (  // 未登录用户访问 /login 时展示登录页。
@@ -90,6 +97,16 @@ export function DashboardRouteElement() {
   return <DashboardPage />;
 }
 
+export function DefaultRouteElement() {
+  const { user } = useRouterAuth();
+  return (
+    <Navigate
+      to={getFirstAccessibleRoute(user?.permissions) ?? "/403"}
+      replace
+    />
+  );
+}
+
 export function CoursesRouteElement() {
   return <CoursesPage />;
 }
@@ -100,4 +117,8 @@ export function StudentsRouteElement() {
 
 export function SummaryRouteElement() {
   return <SummaryPage />;
+}
+
+export function ForbiddenRouteElement() {
+  return <ForbiddenPage />;
 }

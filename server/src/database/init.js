@@ -95,13 +95,11 @@ function refreshLearningRecords() {
 }
 
 function seedData() {
-  const userCount = db.prepare('SELECT COUNT(*) as count FROM users').get().count;
-  if (userCount > 0) return;
+  const shouldSeedBusinessData =
+    db.prepare('SELECT COUNT(*) as count FROM users').get().count === 0;
+  ensureDemoUsers();
 
-  const hashedPassword = bcrypt.hashSync('admin123', 10);
-  db.prepare(`
-    INSERT INTO users (username, password, name, role) VALUES (?, ?, ?, ?)
-  `).run('admin', hashedPassword, '管理员', 'admin');
+  if (!shouldSeedBusinessData) return;
 
   const courses = [
     { name: 'React 基础入门', description: '从零开始学习 React 框架，掌握组件化开发思想', instructor: '张老师', category: '前端开发', status: 'published', student_count: 32, lesson_count: 12 },
@@ -183,4 +181,24 @@ function seedData() {
   }
 
   console.log('Mock 数据初始化完成');
+}
+
+function ensureDemoUsers() {
+  const users = [
+    { username: 'admin', password: 'admin123', name: '管理员', role: 'admin' },
+    { username: 'teacher', password: 'teacher123', name: '教师账号', role: 'teacher' },
+    { username: 'viewer', password: 'viewer123', name: '只读账号', role: 'viewer' },
+  ];
+  const insertUser = db.prepare(`
+    INSERT OR IGNORE INTO users (username, password, name, role) VALUES (?, ?, ?, ?)
+  `);
+
+  for (const user of users) {
+    insertUser.run(
+      user.username,
+      bcrypt.hashSync(user.password, 10),
+      user.name,
+      user.role,
+    );
+  }
 }
