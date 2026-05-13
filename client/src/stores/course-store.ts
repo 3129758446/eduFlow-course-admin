@@ -25,9 +25,8 @@ import type {
   CourseQuery,
 } from "../types";
 import { pageAfterDelete } from "../utils/pagination";
-import { appErrorMessage } from "../utils/text";
 import { registerStoreResetter } from "./reset-registry";
-import { useAuthStore } from "./auth-store";
+import { clearGlobalError, setGlobalError } from "./store-error";
 
 const defaultCourseQuery: CourseQuery = {
   keyword: "",
@@ -38,16 +37,6 @@ const defaultCourseQuery: CourseQuery = {
   sortField: "",
   sortOrder: "",
 };
-
-// 清除全局错误
-function clearGlobalError() {
-  useAuthStore.getState().setGlobalError("");
-}
-
-// 设置全局错误
-function setGlobalError(error: unknown) {
-  useAuthStore.getState().setGlobalError(appErrorMessage(error));
-}
 
 type CourseStore = {
   data: CourseListResponse | null; // 课程列表数据

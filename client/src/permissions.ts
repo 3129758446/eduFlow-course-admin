@@ -19,8 +19,6 @@ export const PERMISSIONS = {
   SUMMARY_DELETE: "summary:delete",
   ACCOUNTS_VIEW: "accounts:view",
   ACCOUNTS_UPDATE_ROLE: "accounts:updateRole",
-  ROLES_VIEW: "roles:view",
-  ROLES_UPDATE_PERMISSIONS: "roles:updatePermissions",
 } as const;
 
 export type PermissionCode = (typeof PERMISSIONS)[keyof typeof PERMISSIONS];

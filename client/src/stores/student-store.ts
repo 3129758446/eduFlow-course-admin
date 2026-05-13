@@ -25,9 +25,8 @@ import type {
   StudentQuery,
 } from "../types";
 import { pageAfterDelete } from "../utils/pagination";
-import { appErrorMessage } from "../utils/text";
 import { registerStoreResetter } from "./reset-registry";
-import { useAuthStore } from "./auth-store";
+import { clearGlobalError, setGlobalError } from "./store-error";
 
 const defaultStudentQuery: StudentQuery = {
   keyword: "",
@@ -36,15 +35,6 @@ const defaultStudentQuery: StudentQuery = {
   page: 1,
   pageSize: 10,
 };
-
-// 清除全局错误
-function clearGlobalError() {
-  useAuthStore.getState().setGlobalError("");
-}
-// 设置全局错误
-function setGlobalError(error: unknown) {
-  useAuthStore.getState().setGlobalError(appErrorMessage(error));
-}
 
 type StudentStore = {
   data: StudentListResponse | null; // 学生列表数据

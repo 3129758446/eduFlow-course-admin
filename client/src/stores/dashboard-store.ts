@@ -8,25 +8,14 @@
 import { create } from 'zustand';
 import { fetchDashboard } from '../api';
 import type { DashboardData } from '../types';
-import { appErrorMessage } from '../utils/text';
-import { useAuthStore } from './auth-store';
 import { registerStoreResetter } from './reset-registry';
+import { clearGlobalError, setGlobalError } from './store-error';
 
 type DashboardStore = {
   data: DashboardData | null;
   loading: boolean;
   refresh: () => Promise<void>;
 };
-
-// 清除全局错误
-function clearGlobalError() {
-  useAuthStore.getState().setGlobalError('');
-}
-
-// 设置全局错误
-function setGlobalError(error: unknown) {
-  useAuthStore.getState().setGlobalError(appErrorMessage(error));
-}
 
 // 创建工作台数据仓库
 export const useDashboardStore = create<DashboardStore>((set) => ({

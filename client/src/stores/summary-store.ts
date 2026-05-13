@@ -18,9 +18,8 @@ import type {
   SummaryQuery,
 } from '../types';
 import { pageAfterDelete } from '../utils/pagination';
-import { appErrorMessage } from '../utils/text';
-import { useAuthStore } from './auth-store';
 import { registerStoreResetter } from './reset-registry';
+import { clearGlobalError, setGlobalError } from './store-error';
 
 const defaultSummaryQuery: SummaryQuery = {
   keyword: '',
@@ -52,14 +51,6 @@ type SummaryStore = {
   deleteById: (id: number) => Promise<void>;
 };
 
-function clearGlobalError() {
-  useAuthStore.getState().setGlobalError('');
-}
-
-function setGlobalError(error: unknown) {
-  useAuthStore.getState().setGlobalError(appErrorMessage(error));
-}
-
 export const useSummaryStore = create<SummaryStore>((set, get) => ({
   data: null,
   detail: null,
@@ -75,6 +66,7 @@ export const useSummaryStore = create<SummaryStore>((set, get) => ({
   refreshList: async () => {
     set({ loading: true });
     try {
+      // 列表只拉摘要字段，详情内容在查看/编辑时再按 id 拉取，避免列表响应过大。
       const data = await fetchSummaries(get().query);
       set({ data, loading: false });
       clearGlobalError();
@@ -99,6 +91,7 @@ export const useSummaryStore = create<SummaryStore>((set, get) => ({
     await get().refreshList();
   },
   openCreate: () => {
+    // 新增和编辑共用一个弹窗，editingId 为 null 时表示创建模式。
     set({
       editingId: null,
       formOpen: true,
@@ -106,6 +99,7 @@ export const useSummaryStore = create<SummaryStore>((set, get) => ({
     });
   },
   openEdit: async (id) => {
+    // 编辑前先拉详情，保证表单里是服务端最新内容，而不是列表里的旧标题。
     set({
       editingId: id,
       formOpen: true,
@@ -127,6 +121,7 @@ export const useSummaryStore = create<SummaryStore>((set, get) => ({
     }
   },
   openView: async (id) => {
+    // 查看详情与编辑详情共用 detail 字段，但用 viewingId/formOpen 区分弹窗类型。
     set({
       viewingId: id,
       detail: null,
@@ -163,6 +158,7 @@ export const useSummaryStore = create<SummaryStore>((set, get) => ({
     set({ formLoading: true });
     try {
       const { editingId } = get();
+      // submitForm 统一处理新增/编辑，页面层不需要知道应该调用哪个接口。
       if (editingId) {
         await updateSummary(editingId, payload);
       } else {
@@ -184,6 +180,7 @@ export const useSummaryStore = create<SummaryStore>((set, get) => ({
     try {
       await deleteSummary(id);
       const { data, query } = get();
+      // 删除当前页最后一条时，自动回退到仍有数据的页码，避免出现空白页。
       const nextPage = pageAfterDelete({
         page: query.page,
         pageSize: query.pageSize,

@@ -5,11 +5,6 @@
 */
 import db from './db.js';
 import bcrypt from 'bcryptjs';
-import {
-  DEFAULT_ROLES,
-  DEFAULT_ROLE_PERMISSIONS,
-  PERMISSION_GROUPS,
-} from '../permissions.js';
 
 export function initDatabase() {
   db.exec(`
@@ -70,38 +65,8 @@ export function initDatabase() {
       FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
     );
 
-    CREATE TABLE IF NOT EXISTS roles (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      code TEXT UNIQUE NOT NULL,
-      name TEXT NOT NULL,
-      description TEXT DEFAULT '',
-      created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-    );
-
-    CREATE TABLE IF NOT EXISTS permissions (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      code TEXT UNIQUE NOT NULL,
-      name TEXT NOT NULL,
-      module TEXT DEFAULT '',
-      module_name TEXT DEFAULT '',
-      sort_order INTEGER DEFAULT 0
-    );
-
-    CREATE TABLE IF NOT EXISTS role_permissions (
-      role_id INTEGER NOT NULL,
-      permission_id INTEGER NOT NULL,
-      PRIMARY KEY (role_id, permission_id),
-      FOREIGN KEY (role_id) REFERENCES roles(id) ON DELETE CASCADE,
-      FOREIGN KEY (permission_id) REFERENCES permissions(id) ON DELETE CASCADE
-    );
-
-    CREATE TABLE IF NOT EXISTS app_migrations (
-      key TEXT PRIMARY KEY,
-      applied_at DATETIME DEFAULT CURRENT_TIMESTAMP
-    );
   `);
 
-  seedRolesAndPermissions();
   seedData();
   refreshLearningRecords();
 }
@@ -226,7 +191,6 @@ function seedData() {
     }
   }
 
-  console.log('Mock 数据初始化完成');
 }
 
 function ensureDemoUsers() {
@@ -265,89 +229,4 @@ function migrateDefaultPassword(username, oldPassword, newPassword) {
     db.prepare('UPDATE users SET password = ? WHERE id = ?')
       .run(bcrypt.hashSync(newPassword, 10), user.id);
   }
-}
-
-function seedRolesAndPermissions() {
-  // 角色和权限字典可以安全反复执行：文案更新会同步到库里，不会破坏已保存的角色授权。
-  const insertRole = db.prepare(`
-    INSERT INTO roles (code, name, description)
-    VALUES (?, ?, ?)
-    ON CONFLICT(code) DO UPDATE SET
-      name = excluded.name,
-      description = excluded.description
-  `);
-
-  for (const role of DEFAULT_ROLES) {
-    insertRole.run(role.code, role.name, role.description);
-  }
-
-  const insertPermission = db.prepare(`
-    INSERT INTO permissions (code, name, module, module_name, sort_order)
-    VALUES (?, ?, ?, ?, ?)
-    ON CONFLICT(code) DO UPDATE SET
-      name = excluded.name,
-      module = excluded.module,
-      module_name = excluded.module_name,
-      sort_order = excluded.sort_order
-  `);
-  let sortOrder = 1;
-  for (const group of PERMISSION_GROUPS) {
-    for (const permission of group.permissions) {
-      insertPermission.run(
-        permission.code,
-        permission.name,
-        group.module,
-        group.moduleName,
-        sortOrder,
-      );
-      sortOrder += 1;
-    }
-  }
-
-  // 默认角色权限只写一次，避免用户在“角色权限”页面修改后，重启服务又被种子数据覆盖。
-  const migrationKey = 'rbac-default-role-permissions-v2';
-  const migrated = db.prepare('SELECT key FROM app_migrations WHERE key = ?').get(migrationKey);
-  const getRole = db.prepare('SELECT id FROM roles WHERE code = ?');
-  const getPermission = db.prepare('SELECT id FROM permissions WHERE code = ?');
-  const insertRolePermission = db.prepare(`
-    INSERT OR IGNORE INTO role_permissions (role_id, permission_id)
-    VALUES (?, ?)
-  `);
-
-  if (!migrated) {
-    for (const [roleCode, permissionCodes] of Object.entries(DEFAULT_ROLE_PERMISSIONS)) {
-      const role = getRole.get(roleCode);
-      if (!role) continue;
-
-      for (const permissionCode of permissionCodes) {
-        const permission = getPermission.get(permissionCode);
-        if (permission) {
-          insertRolePermission.run(role.id, permission.id);
-        }
-      }
-    }
-
-    db.prepare('INSERT INTO app_migrations (key) VALUES (?)').run(migrationKey);
-  }
-
-  const summaryCrudMigrationKey = 'summary-crud-permissions-v1';
-  const summaryCrudMigrated = db.prepare('SELECT key FROM app_migrations WHERE key = ?').get(summaryCrudMigrationKey);
-  if (summaryCrudMigrated) return;
-
-  for (const roleCode of ['teacher', 'student']) {
-    const role = getRole.get(roleCode);
-    if (!role) continue;
-
-    for (const permissionCode of [
-      'summary:create',
-      'summary:update',
-      'summary:delete',
-    ]) {
-      const permission = getPermission.get(permissionCode);
-      if (permission) {
-        insertRolePermission.run(role.id, permission.id);
-      }
-    }
-  }
-  db.prepare('INSERT INTO app_migrations (key) VALUES (?)').run(summaryCrudMigrationKey);
 }

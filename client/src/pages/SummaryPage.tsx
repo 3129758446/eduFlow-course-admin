@@ -35,6 +35,8 @@ const DEFAULT_SUMMARY_FORM: SummaryFormValue = {
   content: "",
 };
 
+const SUMMARY_TABLE_SCROLL = { x: 900 };
+
 export function SummaryPage() {
   const [form] = Form.useForm<SummaryFormValue>();
   const previewContent = Form.useWatch("content", form);
@@ -87,6 +89,14 @@ export function SummaryPage() {
   useEffect(() => {
     void refreshList();
   }, [refreshList]);
+
+  const submitSearch = () => {
+    void updateQuery((prev) => ({
+      ...prev,
+      keyword: draftKeyword.trim(),
+      page: 1,
+    }));
+  };
 
   const handleOpenCreate = () => {
     form.setFieldsValue(DEFAULT_SUMMARY_FORM);
@@ -212,26 +222,14 @@ export function SummaryPage() {
             placeholder="搜索标题/内容"
             prefix={<SearchOutlined className="text-slate-400" />}
             onChange={(event) => setDraftKeyword(event.target.value)}
-            onPressEnter={() =>
-              void updateQuery((prev) => ({
-                ...prev,
-                keyword: draftKeyword.trim(),
-                page: 1,
-              }))
-            }
+            onPressEnter={submitSearch}
             className="w-75! rounded-3.5! border-4! border-slate-300!"
             style={{ height: "57px", padding: "0 16px" }}
           />
           <Button
             size="large"
             icon={<SearchOutlined />}
-            onClick={() =>
-              void updateQuery((prev) => ({
-                ...prev,
-                keyword: draftKeyword.trim(),
-                page: 1,
-              }))
-            }
+            onClick={submitSearch}
             className="w-25! rounded-3.5! border-4! border-slate-900! text-slate-900! hover:border-[#222]! hover:text-slate-900!"
           >
             搜索
@@ -253,7 +251,7 @@ export function SummaryPage() {
           columns={columns}
           loading={loading}
           pagination={false}
-          scroll={{ x: 900 }}
+          scroll={SUMMARY_TABLE_SCROLL}
           className="course-table-like manage-table summary-list-table"
           locale={{ emptyText: "暂无学习总结" }}
         />

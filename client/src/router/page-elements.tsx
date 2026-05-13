@@ -12,7 +12,6 @@ import { LoginPage } from "../pages/LoginPage";
 import { AccountsPage } from "../pages/AccountsPage";
 import { CoursesPage } from "../pages/CoursesPage";
 import { DashboardPage } from "../pages/DashboardPage";
-import { RolesPage } from "../pages/RolesPage";
 import { StudentsPage } from "../pages/StudentsPage";
 import { SummaryPage } from "../pages/SummaryPage";
 import { ForbiddenPage } from "../pages/ForbiddenPage";
@@ -39,7 +38,8 @@ export function LoginRouteElement() {
     );
   }
 
-  return (  // 未登录用户访问 /login 时展示登录页。
+  // 未登录用户访问 /login 时展示登录页。
+  return (
     <LoginPage
       onLogin={handleLogin}
       error={globalError} 
@@ -127,8 +127,4 @@ export function ForbiddenRouteElement() {
 
 export function AccountsRouteElement() {
   return <AccountsPage />;
-}
-
-export function RolesRouteElement() {
-  return <RolesPage />;
 }

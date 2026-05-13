@@ -159,24 +159,7 @@ export type AccountUser = Pick<
 >;
 
 export type Role = {
-  id: number;
   code: string;
   name: string;
   description: string;
-  created_at: string;
-  permissions: string[];
-};
-
-export type SystemPermission = {
-  id: number;
-  code: string;
-  name: string;
-  module: string;
-  module_name: string;
-  sort_order: number;
-};
-
-export type RolePermissionData = {
-  roles: Role[];
-  permissions: SystemPermission[];
 };

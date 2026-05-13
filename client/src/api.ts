@@ -17,7 +17,7 @@ import type {
   DashboardData,
   LoginResponse,
   AccountUser,
-  RolePermissionData,
+  Role,
   StudentDetail,
   StudentFormValue,
   StudentListResponse,
@@ -219,6 +219,10 @@ export function fetchAccounts() {
   return request<AccountUser[]>({ url: '/system/users' });
 }
 
+export function fetchRoles() {
+  return request<Role[]>({ url: '/system/roles' });
+}
+
 export function updateAccountRole(id: number, role: string) {
   return request<AccountUser>({
     url: `/system/users/${id}/role`,
@@ -243,17 +247,5 @@ export function deleteAccount(id: number) {
   return request<null>({
     url: `/system/users/${id}`,
     method: 'DELETE',
-  });
-}
-
-export function fetchRolePermissions() {
-  return request<RolePermissionData>({ url: '/system/roles' });
-}
-
-export function updateRolePermissions(role: string, permissions: string[]) {
-  return request<{ role: string; permissions: string[] }>({
-    url: `/system/roles/${role}/permissions`,
-    method: 'PUT',
-    data: { permissions },
   });
 }

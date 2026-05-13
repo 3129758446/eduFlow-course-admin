@@ -1,7 +1,7 @@
 /*
 模块：账号管理页
 定位：admin 用于查看账号列表，新增/删除教师与学生账号，并切换教师/学生角色
-数据流：fetchAccounts + fetchRolePermissions -> 表格展示 -> 新增/修改/删除 -> 刷新或局部更新
+数据流：fetchAccounts + fetchRoles -> 表格展示 -> 新增/修改/删除 -> 刷新或局部更新
 学习要点：draftRoles 保存“页面临时选择值”，只有点击保存后才真正提交到后端。
 */
 import {
@@ -28,7 +28,7 @@ import {
   createAccount,
   deleteAccount,
   fetchAccounts,
-  fetchRolePermissions,
+  fetchRoles,
   updateAccountRole,
 } from "../api";
 import { Card } from "../components/ui";
@@ -43,6 +43,7 @@ type AccountFormValue = {
   role: string;
 };
 
+// 账号管理页只允许维护教师和学生，admin 是系统账号，前后端都会保护。
 const MANAGED_ROLES = ["teacher", "student"];
 
 export function AccountsPage() {
@@ -69,12 +70,12 @@ export function AccountsPage() {
   const loadData = useCallback(async () => {
     setLoading(true);
     try {
-      const [accountList, roleData] = await Promise.all([
+      const [accountList, roleList] = await Promise.all([
         fetchAccounts(),
-        fetchRolePermissions(),
+        fetchRoles(),
       ]);
       setAccounts(accountList);
-      setRoles(roleData.roles);
+      setRoles(roleList);
       setDraftRoles(
         Object.fromEntries(accountList.map((account) => [account.id, account.role])),
       );
@@ -115,6 +116,7 @@ export function AccountsPage() {
     try {
       const values = await form.validateFields();
       setCreating(true);
+      // 后端会统一写入初始密码 123456，前端不接收密码字段，减少误填和泄漏风险。
       const created = await createAccount(values);
       setAccounts((prev) => [...prev, created]);
       setDraftRoles((prev) => ({ ...prev, [created.id]: created.role }));

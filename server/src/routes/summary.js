@@ -18,6 +18,7 @@ const router = new Router();
 
 router.get('/', authenticateToken, requirePermission(PERMISSIONS.SUMMARY_VIEW), async (ctx) => {
   const { page = 1, pageSize = 10, keyword = '' } = ctx.query;
+  // 服务端兜底分页范围，避免异常 pageSize 一次性拉取过多数据。
   const normalizedPage = Math.max(Number(page) || 1, 1);
   const normalizedPageSize = Math.min(Math.max(Number(pageSize) || 10, 1), 50);
   const offset = (normalizedPage - 1) * normalizedPageSize;
@@ -25,6 +26,7 @@ router.get('/', authenticateToken, requirePermission(PERMISSIONS.SUMMARY_VIEW), 
   let where = 'WHERE user_id = ?';
 
   if (keyword) {
+    // 搜索只在当前用户的数据范围内进行，不能因为关键字命中而越权看到别人的总结。
     where += ' AND (title LIKE ? OR content LIKE ?)';
     params.push(`%${keyword}%`, `%${keyword}%`);
   }
@@ -104,6 +106,7 @@ router.delete('/:id', authenticateToken, requirePermission(PERMISSIONS.SUMMARY_D
 });
 
 function findOwnSummary(id, userId) {
+  // 所有详情、编辑、删除都必须同时匹配 id 和 user_id，这是本模块的数据隔离核心。
   return db.prepare(`
     SELECT id, title, content, created_at, updated_at
     FROM learning_summaries
@@ -115,6 +118,7 @@ function parseSummaryPayload(body = {}) {
   const title = String(body.title ?? '').trim();
   const content = String(body.content ?? '').trim();
 
+  // 标题和内容都不允许为空，避免列表出现不可识别的空记录。
   if (!title) {
     return { error: '标题不能为空' };
   }
