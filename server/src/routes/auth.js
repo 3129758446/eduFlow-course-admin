@@ -32,6 +32,7 @@ router.post('/login', async (ctx) => {
     return fail(ctx, 401, '用户名或密码错误');
   }
 
+  // 签发 JWT
   const token = jwt.sign(
     { id: user.id, username: user.username, role: user.role, name: user.name },
     JWT_SECRET,

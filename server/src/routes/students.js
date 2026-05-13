@@ -195,7 +195,7 @@ function updateCourseCounts() {
   // 课程的 student_count 是冗余统计字段，用空间换取列表/图表查询速度。
   for (const course of courses) {
     const count = students.filter((student) => {
-      const ids = JSON.parse(student.course_ids || '[]');
+      const ids = JSON.parse(student.course_ids || '[]');  
       return ids.includes(course.id);
     }).length;
     db.prepare('UPDATE courses SET student_count = ? WHERE id = ?').run(count, course.id);

@@ -7,6 +7,7 @@ export function formatPercent(value: number) {
   return `${Math.round(value)}%`;
 }
 
+// 错误消息
 export function appErrorMessage(error: unknown) {
   if (error instanceof Error) {
     return error.message;

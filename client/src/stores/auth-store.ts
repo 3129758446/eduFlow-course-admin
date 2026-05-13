@@ -1,4 +1,4 @@
-﻿﻿/* 
+﻿﻿﻿﻿/* 
 模块：认证状态仓库（Zustand）
 定位：集中管理登录态（初始化/登录/退出）与全局错误信息，驱动路由守卫与页面级提示
 数据流：localStorage(token) -> axios 拦截器注入 -> /api/auth/me 校验 -> user 写入 store
@@ -17,12 +17,13 @@ import { clearAuth, getAuthToken, setAuth } from "../auth";
 import type { User } from "../types";
 import { resetAllStores } from "./reset-registry";
 
+// 认证状态仓库类型定义
 type AuthStore = {
   authLoading: boolean;
   initialized: boolean;
   token: string | null;
   user: User | null;
-  globalError: string;
+  globalError: string; // 错误信息，用于页面级提示
   setGlobalError: (value: string) => void;
   initializeAuth: () => Promise<void>;
   handleLogin: (username: string, password: string) => Promise<void>;
@@ -30,7 +31,7 @@ type AuthStore = {
 };
 
 const initialToken = getAuthToken();
-let initializePromise: Promise<void> | null = null;
+let initializePromise: Promise<void> | null = null; // 初始化 Promise，避免并发重复请求
 
 // 认证状态仓库
 // 存储登录态（初始化/登录/退出）与全局错误信息，驱动路由守卫与页面级提示

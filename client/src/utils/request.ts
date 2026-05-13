@@ -12,11 +12,13 @@ import axios, { AxiosError, type AxiosRequestConfig } from "axios";
 import { clearAuth, getAuthToken } from "../auth";
 import type { ApiEnvelope } from "../types";
 
+// 创建 Axios 实例，配置 baseURL/超时时间
 const http = axios.create({
   baseURL: "/api",
   timeout: 10000,
 });
 
+// 请求拦截器：在发送请求前注入 Authorization 头
 http.interceptors.request.use((config) => {
   const token = getAuthToken();
 
@@ -25,16 +27,18 @@ http.interceptors.request.use((config) => {
     config.headers.set("Authorization", `Bearer ${token}`);
   }
 
-  return config;
+  return config;  // 返回修改后的请求配置
 });
 
+// 响应拦截器：在收到响应后校验状态码和业务 code 进行错误处理
 http.interceptors.response.use(
   (response) => {
+    // 从响应数据中提取业务数据 payload 进行返回
     const payload = response.data as ApiEnvelope<unknown>;
 
     // 后端采用业务 code 包裹 HTTP 200，这里优先按统一响应格式判断是否成功。
     if (payload.code === 401) {
-      clearAuth();
+      clearAuth();  // 清除认证状态，确保后续请求失败时能跳转到登录页。
       throw new Error("登录已失效，请重新登录");
     }
 
@@ -45,8 +49,8 @@ http.interceptors.response.use(
     return response;
   },
   (error: AxiosError<ApiEnvelope<unknown>>) => {
-    const status = error.response?.status;
-    const message = error.response?.data?.msg || error.message || "请求失败";
+    const status = error.response?.status; // HTTP 状态码
+    const message = error.response?.data?.msg || error.message || "请求失败"; // 从响应数据中提取业务错误信息
 
     // 同时兼容 HTTP 401 和业务 code=401 两种失效场景。
     if (status === 401 || error.response?.data?.code === 401) {
@@ -58,6 +62,7 @@ http.interceptors.response.use(
   },
 );
 
+// 导出轻量 request<T>() 帮助函数，统一处理请求配置和响应数据
 export async function request<T>(config: AxiosRequestConfig) {
   // 统一在这一层解包 data，页面和 store 只面向业务数据类型 T。
   const response = await http.request<ApiEnvelope<T>>(config);

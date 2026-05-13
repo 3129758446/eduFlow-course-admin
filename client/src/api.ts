@@ -96,7 +96,7 @@ export function deleteCourse(id: number) {
 export function toggleCourseStatus(id: number) {
   return request<Course>({
     url: `/courses/${id}/status`,
-    method: 'PATCH',
+    method: 'PATCH', // PATCH 请求，更新状态字段
   });
 }
 

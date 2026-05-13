@@ -19,7 +19,7 @@ export function getAuthToken() {
 // 登录成功后写入 token 与 user 到 localStorage
 export function setAuth(token: string, user: User) {
   localStorage.setItem(TOKEN_KEY, token);
-  localStorage.setItem(USER_KEY, JSON.stringify(user));
+  localStorage.setItem(USER_KEY, JSON.stringify(user)); // 保存用户信息
 }
 
 // 清理 localStorage 中的 token 与 user

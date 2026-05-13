@@ -31,5 +31,5 @@ export const DEFAULT_STUDENT_FORM: StudentFormValue = {
   phone: '',
   email: '',
   status: 'active',
-  course_ids: [],
+  course_ids: [], // 学生选修课程 ID 列表
 };

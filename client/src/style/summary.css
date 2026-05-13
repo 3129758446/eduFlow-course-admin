@@ -52,6 +52,45 @@
   text-decoration: none;
 }
 
+/* 为引用块提供与正文区分开的浅背景和强调边线。 */
+.markdown-body blockquote {
+  margin: 0 0 18px;
+  padding: 12px 16px;
+  border-left: 4px solid #7dd3fc;
+  background: #f8fafc;
+  color: #334155;
+  border-radius: 0 12px 12px 0;
+}
+
+/* GFM 表格会直接输出 table 结构，这里统一成后台卡片风格。 */
+.markdown-body table {
+  width: 100%;
+  margin: 0 0 22px;
+  border-collapse: collapse;
+  overflow: hidden;
+  border-radius: 16px;
+  background: #fff;
+}
+
+.markdown-body th,
+.markdown-body td {
+  padding: 12px 14px;
+  border: 1px solid #e2e8f0;
+  text-align: left;
+}
+
+.markdown-body th {
+  background: #f8fafc;
+  color: #0f172a;
+  font-weight: 700;
+}
+
+.markdown-body hr {
+  margin: 28px 0;
+  border: none;
+  border-top: 1px solid #e2e8f0;
+}
+
 .markdown-body code {
   padding: 2px 6px;
   border-radius: 8px;
@@ -69,6 +108,9 @@
   top: 14px;
   right: 14px;
   z-index: 1;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
   min-width: 72px;
   height: 36px;
   border: 1px solid rgba(148, 163, 184, 0.35);
@@ -83,6 +125,7 @@
   background: rgba(51, 65, 85, 0.96);
 }
 
+/* 外层容器负责留出复制按钮空间，真正的高亮内容由组件库注入。 */
 .code-block {
   margin: 22px 0 28px;
   padding: 56px 24px 22px;
@@ -143,6 +186,7 @@
   color: #ffcb6b;
 }
 
+/* Markdown 图片统一居中并限制最大宽度，避免撑破内容区。 */
 .md-image {
   display: block;
   max-width: 100%;
