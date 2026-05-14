@@ -10,9 +10,26 @@ import { CopyOutlined } from "@ant-design/icons";
 import ReactMarkdown from "react-markdown";
 import type { Components } from "react-markdown";
 import remarkGfm from "remark-gfm";
-import { Prism as SyntaxHighlighter } from "react-syntax-highlighter";
+import { PrismLight as SyntaxHighlighter } from "react-syntax-highlighter";
+import bash from "react-syntax-highlighter/dist/esm/languages/prism/bash";
+import javascript from "react-syntax-highlighter/dist/esm/languages/prism/javascript";
+import json from "react-syntax-highlighter/dist/esm/languages/prism/json";
+import jsx from "react-syntax-highlighter/dist/esm/languages/prism/jsx";
+import markdown from "react-syntax-highlighter/dist/esm/languages/prism/markdown";
+import tsx from "react-syntax-highlighter/dist/esm/languages/prism/tsx";
+import typescript from "react-syntax-highlighter/dist/esm/languages/prism/typescript";
 import { oneDark } from "react-syntax-highlighter/dist/esm/styles/prism";
 
+// 语言映射表
+SyntaxHighlighter.registerLanguage("bash", bash); 
+SyntaxHighlighter.registerLanguage("javascript", javascript);
+SyntaxHighlighter.registerLanguage("json", json);
+SyntaxHighlighter.registerLanguage("jsx", jsx);
+SyntaxHighlighter.registerLanguage("markdown", markdown);
+SyntaxHighlighter.registerLanguage("tsx", tsx);
+SyntaxHighlighter.registerLanguage("typescript", typescript);
+
+// 图片解析函数
 function resolveImage(src: string) {
   // Markdown 中既支持绝对 http 链接，也支持相对路径自动映射到服务端静态资源接口。
   if (/^https?:\/\//.test(src)) return src;
@@ -20,6 +37,7 @@ function resolveImage(src: string) {
   return `/api/static/${src.replace(/^\.?\//, "")}`;
 }
 
+// 文本内容提取函数
 function getTextContent(node: ReactNode): string {
   if (typeof node === "string" || typeof node === "number") {
     return String(node);
@@ -36,6 +54,7 @@ function getTextContent(node: ReactNode): string {
   return "";
 }
 
+// 代码块提取函数
 function extractCodeBlock(children: ReactNode) {
   // react-markdown 会把 ```code``` 包成 pre > code，这里把语言和纯文本提取出来交给高亮组件。
   const [firstChild] = Children.toArray(children);
@@ -56,6 +75,7 @@ function extractCodeBlock(children: ReactNode) {
   };
 }
 
+// 代码块语言归一化函数
 function normalizeCodeLang(lang?: string) {
   if (!lang) return "javascript";
 
@@ -74,6 +94,7 @@ function normalizeCodeLang(lang?: string) {
   return aliases[lang] ?? lang;
 }
 
+// Markdown 渲染器组件
 export function MarkdownRenderer({ content }: { content: string }) {
   const components = useMemo<Components>(
     () => ({
@@ -111,6 +132,7 @@ export function MarkdownRenderer({ content }: { content: string }) {
   );
 }
 
+// 代码块组件
 function CodeBlock({ code, lang }: { code: string; lang: string }) {
   const [copied, setCopied] = useState(false);
 

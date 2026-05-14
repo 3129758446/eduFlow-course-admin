@@ -10,21 +10,37 @@ import {
   LineChartOutlined,
   TeamOutlined,
 } from "@ant-design/icons";
-import { useEffect } from "react";
+import { lazy, Suspense, useEffect } from "react";
 import { useShallow } from "zustand/react/shallow";
-import {
-  CourseCategoryChart,
-  CourseEnrollmentChart,
-  LearningActivityChart,
-  StudentStatusChart,
-} from "../components/echarts";
 import { EmptyState, PanelLoading } from "../components/feedback";
 import { Card, StatCard } from "../components/ui";
 import { useDashboardStore } from "../stores/dashboard-store";
 import { formatPercent } from "../utils/text";
 
+const CourseEnrollmentChart = lazy(() =>
+  import("../components/echarts/CourseEnrollmentChart").then((module) => ({
+    default: module.CourseEnrollmentChart,
+  })),
+);
+const LearningActivityChart = lazy(() =>
+  import("../components/echarts/LearningActivityChart").then((module) => ({
+    default: module.LearningActivityChart,
+  })),
+);
+const StudentStatusChart = lazy(() =>
+  import("../components/echarts/StudentStatusChart").then((module) => ({
+    default: module.StudentStatusChart,
+  })),
+);
+const CourseCategoryChart = lazy(() =>
+  import("../components/echarts/CourseCategoryChart").then((module) => ({
+    default: module.CourseCategoryChart,
+  })),
+);
+
 const chartPanelClass =
   "rounded-4.5 border-4 border-dashed border-slate-300 bg-[repeating-linear-gradient(135deg,#ffffff_0,#ffffff_18px,#f7f4ef_18px,#f7f4ef_30px)] px-4 py-3";
+const chartFallback = <PanelLoading text="正在加载图表..." />;
 
 export function DashboardPage() {
   const { data, loading, refresh } = useDashboardStore(
@@ -94,22 +110,30 @@ export function DashboardPage() {
       <section className="grid gap-5 xl:grid-cols-2">
         <Card title="课程选课人数 TOP 8">
           <div className={chartPanelClass}>
-            <CourseEnrollmentChart items={data.charts.enrollment.slice(0, 8)} />
+            <Suspense fallback={chartFallback}>
+              <CourseEnrollmentChart items={data.charts.enrollment.slice(0, 8)} />
+            </Suspense>
           </div>
         </Card>
         <Card title="近 7 天学习活跃度">
           <div className={chartPanelClass}>
-            <LearningActivityChart items={data.charts.activity} />
+            <Suspense fallback={chartFallback}>
+              <LearningActivityChart items={data.charts.activity} />
+            </Suspense>
           </div>
         </Card>
         <Card title="学生状态分布">
           <div className={chartPanelClass}>
-            <StudentStatusChart items={data.charts.statusDist} />
+            <Suspense fallback={chartFallback}>
+              <StudentStatusChart items={data.charts.statusDist} />
+            </Suspense>
           </div>
         </Card>
         <Card title="课程分类分布">
           <div className={chartPanelClass}>
-            <CourseCategoryChart items={topCategoryItems} />
+            <Suspense fallback={chartFallback}>
+              <CourseCategoryChart items={topCategoryItems} />
+            </Suspense>
           </div>
         </Card>
       </section>

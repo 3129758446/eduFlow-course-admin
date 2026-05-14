@@ -16,7 +16,7 @@ import { PERMISSIONS } from '../permissions.js';
 import { success, fail } from '../utils/response.js';
 
 const router = new Router();
-
+// 学生列表（搜索/筛选/分页/按课程过滤）
 router.get('/', authenticateToken, requirePermission(PERMISSIONS.STUDENTS_VIEW), async (ctx) => {
   const { keyword = '', className = '', status = '', courseId = '', page = 1, pageSize = 10 } = ctx.query;
   const offset = (Number(page) - 1) * Number(pageSize);

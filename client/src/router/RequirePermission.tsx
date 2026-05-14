@@ -15,8 +15,8 @@ export function RequirePermission({
   code: PermissionCode;
   children: ReactNode;
 }) {
-  const location = useLocation();
-  const hasPermission = useAuthStore((state) => state.hasPermission);
+  const location = useLocation(); // 获取当前路由路径
+  const hasPermission = useAuthStore((state) => state.hasPermission); // 从 auth-store 中获取 hasPermission 函数
 
   if (!hasPermission(code)) {
     // 把缺失权限带到 403 页面，方便用户演示和开发调试时定位原因。

@@ -27,6 +27,7 @@ const defaultSummaryQuery: SummaryQuery = {
   pageSize: 10,
 };
 
+// 学习总结仓库状态
 type SummaryStore = {
   data: SummaryListResponse | null;
   detail: Summary | null;
@@ -51,30 +52,33 @@ type SummaryStore = {
   deleteById: (id: number) => Promise<void>;
 };
 
+// 学习总结仓库实例
 export const useSummaryStore = create<SummaryStore>((set, get) => ({
-  data: null,
-  detail: null,
-  loading: true,
-  detailLoading: false,
-  formOpen: false,
-  formLoading: false,
-  editingId: null,
-  viewingId: null,
-  query: defaultSummaryQuery,
-  draftKeyword: '',
-  setDraftKeyword: (value) => set({ draftKeyword: value }),
+  data: null, // 学习总结列表数据
+  detail: null, // 学习总结详情数据
+  loading: true, // 列表数据加载中
+  detailLoading: false, // 详情数据加载中
+  formOpen: false, // 新增/编辑弹窗是否打开
+  formLoading: false, // 新增/编辑表单加载中
+  editingId: null, // 当前编辑的总结 id
+  viewingId: null, // 当前查看的总结 id
+  query: defaultSummaryQuery, // 列表查询参数
+  draftKeyword: '', // 草稿关键词
+  setDraftKeyword: (value) => set({ draftKeyword: value }), // 设置草稿关键词
+  // 刷新列表
   refreshList: async () => {
     set({ loading: true });
     try {
       // 列表只拉摘要字段，详情内容在查看/编辑时再按 id 拉取，避免列表响应过大。
       const data = await fetchSummaries(get().query);
       set({ data, loading: false });
-      clearGlobalError();
+      clearGlobalError(); // 刷新成功后清除全局错误
     } catch (error) {
       set({ loading: false });
-      setGlobalError(error);
+      setGlobalError(error); // 刷新失败后设置全局错误
     }
   },
+  // 更新查询参数
   updateQuery: async (updater) => {
     set((state) => ({
       query: updater(state.query),
@@ -82,6 +86,7 @@ export const useSummaryStore = create<SummaryStore>((set, get) => ({
     }));
     await get().refreshList();
   },
+  // 重置查询参数
   resetFilters: async () => {
     set({
       draftKeyword: '',
@@ -90,6 +95,7 @@ export const useSummaryStore = create<SummaryStore>((set, get) => ({
     });
     await get().refreshList();
   },
+  // 打开新增/编辑弹窗
   openCreate: () => {
     // 新增和编辑共用一个弹窗，editingId 为 null 时表示创建模式。
     set({
@@ -98,6 +104,7 @@ export const useSummaryStore = create<SummaryStore>((set, get) => ({
       detail: null,
     });
   },
+  // 打开编辑弹窗
   openEdit: async (id) => {
     // 编辑前先拉详情，保证表单里是服务端最新内容，而不是列表里的旧标题。
     set({
@@ -120,6 +127,7 @@ export const useSummaryStore = create<SummaryStore>((set, get) => ({
       return null;
     }
   },
+  // 打开查看弹窗
   openView: async (id) => {
     // 查看详情与编辑详情共用 detail 字段，但用 viewingId/formOpen 区分弹窗类型。
     set({
@@ -140,6 +148,7 @@ export const useSummaryStore = create<SummaryStore>((set, get) => ({
       setGlobalError(error);
     }
   },
+  // 关闭新增/编辑弹窗
   closeForm: () => {
     set({
       formOpen: false,
@@ -147,6 +156,7 @@ export const useSummaryStore = create<SummaryStore>((set, get) => ({
       editingId: null,
     });
   },
+  // 关闭查看弹窗
   closeView: () => {
     set({
       viewingId: null,
@@ -154,6 +164,7 @@ export const useSummaryStore = create<SummaryStore>((set, get) => ({
       detailLoading: false,
     });
   },
+  // 提交新增/编辑表单
   submitForm: async (payload) => {
     set({ formLoading: true });
     try {
@@ -176,6 +187,7 @@ export const useSummaryStore = create<SummaryStore>((set, get) => ({
       throw error;
     }
   },
+  // 删除总结
   deleteById: async (id) => {
     try {
       await deleteSummary(id);
@@ -198,6 +210,7 @@ export const useSummaryStore = create<SummaryStore>((set, get) => ({
   },
 }));
 
+// 重置所有数据
 registerStoreResetter(() => {
   useSummaryStore.setState({
     data: null,

@@ -60,6 +60,7 @@ export function AppShell({
   const [passwordModalOpen, setPasswordModalOpen] = useState(false);
   const [passwordSubmitting, setPasswordSubmitting] = useState(false);
 
+  // 过滤出当前用户有权限的导航项
   const visibleNavItems = navItems.filter((item) =>
     user.permissions.includes(item.permission),
   );

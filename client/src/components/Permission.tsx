@@ -23,8 +23,8 @@ export function Permission({
   fallback = null,
   children,
 }: PermissionProps) {
-  const hasPermission = useAuthStore((state) => state.hasPermission);
-  const hasAnyPermission = useAuthStore((state) => state.hasAnyPermission);
+  const hasPermission = useAuthStore((state) => state.hasPermission); // 从 auth-store 中获取 hasPermission 函数
+  const hasAnyPermission = useAuthStore((state) => state.hasAnyPermission); // 从 auth-store 中获取 hasAnyPermission 函数
 
   // code 与 any 二选一：code 适合单权限按钮，any 适合“有任意操作权限就显示”的区域。
   const allowed = code

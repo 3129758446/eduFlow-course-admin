@@ -44,6 +44,7 @@ export function getCurrentUser() {
   return request<User>({ url: '/auth/me' });
 }
 
+// 修改密码
 export function changePassword(payload: {
   oldPassword: string;
   newPassword: string;
@@ -163,6 +164,7 @@ export function createStudent(payload: StudentFormValue) {
   });
 }
 
+// 更新学生
 export function updateStudent(id: number, payload: StudentFormValue) {
   return request<StudentDetail>({
     url: `/students/${id}`,
@@ -171,6 +173,7 @@ export function updateStudent(id: number, payload: StudentFormValue) {
   });
 }
 
+// 删除学生
 export function deleteStudent(id: number) {
   return request<null>({
     url: `/students/${id}`,
@@ -178,6 +181,7 @@ export function deleteStudent(id: number) {
   });
 }
 
+// 获取总结列表
 export function fetchSummaries(query: Partial<SummaryQuery>) {
   const search = new URLSearchParams();
   Object.entries(query).forEach(([key, value]) => {
@@ -188,10 +192,12 @@ export function fetchSummaries(query: Partial<SummaryQuery>) {
   return request<SummaryListResponse>({ url: `/summary?${search.toString()}` });
 }
 
+// 获取总结详情
 export function fetchSummaryDetail(id: number) {
   return request<Summary>({ url: `/summary/${id}` });
 }
 
+// 创建总结
 export function createSummary(payload: SummaryFormValue) {
   return request<Summary>({
     url: '/summary',
@@ -200,6 +206,7 @@ export function createSummary(payload: SummaryFormValue) {
   });
 }
 
+// 更新总结
 export function updateSummary(id: number, payload: SummaryFormValue) {
   return request<Summary>({
     url: `/summary/${id}`,
@@ -208,6 +215,7 @@ export function updateSummary(id: number, payload: SummaryFormValue) {
   });
 }
 
+// 删除总结
 export function deleteSummary(id: number) {
   return request<null>({
     url: `/summary/${id}`,
@@ -215,14 +223,17 @@ export function deleteSummary(id: number) {
   });
 }
 
+// 获取账号列表
 export function fetchAccounts() {
   return request<AccountUser[]>({ url: '/system/users' });
 }
 
+// 获取角色列表
 export function fetchRoles() {
   return request<Role[]>({ url: '/system/roles' });
 }
 
+// 更新账号角色
 export function updateAccountRole(id: number, role: string) {
   return request<AccountUser>({
     url: `/system/users/${id}/role`,
@@ -231,6 +242,7 @@ export function updateAccountRole(id: number, role: string) {
   });
 }
 
+// 创建账号
 export function createAccount(payload: {
   username: string;
   name: string;
@@ -243,6 +255,7 @@ export function createAccount(payload: {
   });
 }
 
+// 删除账号
 export function deleteAccount(id: number) {
   return request<null>({
     url: `/system/users/${id}`,

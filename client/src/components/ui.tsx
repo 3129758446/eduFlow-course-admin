@@ -6,12 +6,13 @@
 import type { ReactNode } from 'react';
 import { Card as AntCard, Pagination, Statistic } from 'antd';
 
+// 卡片组件
 export function Card({
-  title,
-  actions,
-  className = '',
-  children,
-}: {
+  title, // 升题
+  actions, // 操作按钮
+  className = '', // 自定义类名
+  children, // 卡片内容
+ }: {
   title: string;
   actions?: ReactNode;
   className?: string;
@@ -34,11 +35,12 @@ export function Card({
   );
 }
 
+// 统计卡片组件
 export function StatCard({
-  icon,
-  label,
-  value,
-  subValue,
+  icon, // 图标
+  label, // 标签
+  value, // 数值
+  subValue, // 子数值
 }: {
   icon: ReactNode;
   label: string;
@@ -69,12 +71,13 @@ export function StatCard({
   );
 }
 
+// 分页栏组件
 export function PaginationBar({
-  page,
-  pageSize,
-  total,
-  onPageChange,
-  onPageSizeChange,
+  page, // 当前页码
+  pageSize, // 每页条数
+  total, // 总条数
+  onPageChange, // 分页切换回调
+  onPageSizeChange, // 每页条数切换回调
 }: {
   page: number;
   pageSize: number;

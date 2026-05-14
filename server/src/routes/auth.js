@@ -13,8 +13,8 @@ import { JWT_SECRET, authenticateToken } from '../middleware/auth.js';
 import { getPermissionsByRole } from '../permissions.js';
 import { success, fail } from '../utils/response.js';
 
-const router = new Router();
-
+const router = new Router(); // 认证路由
+// 登录接口
 router.post('/login', async (ctx) => {
   const { username, password } = ctx.request.body;
 
@@ -41,21 +41,23 @@ router.post('/login', async (ctx) => {
   );
 
   // 返回前剔除 password 字段，避免敏感信息泄漏到前端。
-  const { password: _, ...userInfo } = user;
-  userInfo.permissions = getPermissionsByRole(user.role);
+  const { password: _, ...userInfo } = user; 
+  userInfo.permissions = getPermissionsByRole(user.role);  // 添加权限字段
   success(ctx, { token, user: userInfo });
 });
 
+// 获取当前用户信息接口
 router.get('/me', authenticateToken, async (ctx) => {
   // /me 的作用是“用 token 换当前用户信息”，前端冷启动时会依赖它恢复登录态。
   const user = db.prepare('SELECT id, username, name, role, avatar, created_at FROM users WHERE id = ?').get(ctx.state.user.id);
   if (!user) {
     return fail(ctx, 404, '用户不存在');
   }
-  user.permissions = getPermissionsByRole(user.role);
+  user.permissions = getPermissionsByRole(user.role);  // 添加权限字段
   success(ctx, user);
 });
 
+// 更新密码接口
 router.patch('/password', authenticateToken, async (ctx) => {
   const oldPassword = String(ctx.request.body?.oldPassword ?? '');
   const newPassword = String(ctx.request.body?.newPassword ?? '');

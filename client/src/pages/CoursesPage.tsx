@@ -241,6 +241,7 @@ export function CoursesPage() {
         width: "25%",
         render: (_, course) => (
           <Space className="list-actions" size={0} wrap>
+            {/* 编辑按钮，仅对有更新权限的用户可见。 */}
             <Permission code={PERMISSIONS.COURSES_UPDATE}>
               <Button
                 type="link"
@@ -253,6 +254,7 @@ export function CoursesPage() {
                 编辑
               </Button>
             </Permission>
+            {/* 发布/下架按钮，仅对有更新权限的用户可见。 */}
             <Permission code={PERMISSIONS.COURSES_UPDATE}>
               <Popconfirm
                 title={

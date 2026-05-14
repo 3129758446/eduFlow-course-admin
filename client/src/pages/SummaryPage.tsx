@@ -21,14 +21,17 @@ import {
   Tabs,
 } from "antd";
 import type { ColumnsType } from "antd/es/table";
-import { useCallback, useEffect, useMemo } from "react";
+import { lazy, Suspense, useCallback, useEffect, useMemo } from "react";
 import { useShallow } from "zustand/react/shallow";
 import { Permission } from "../components/Permission";
 import { Card, PaginationBar } from "../components/ui";
-import { MarkdownRenderer } from "../markdown";
 import { PERMISSIONS } from "../permissions";
 import { useSummaryStore } from "../stores/summary-store";
 import type { SummaryFormValue, SummaryListItem } from "../types";
+
+const MarkdownRenderer = lazy(() =>
+  import("../markdown").then((module) => ({ default: module.MarkdownRenderer })),
+);
 
 const DEFAULT_SUMMARY_FORM: SummaryFormValue = {
   title: "",
@@ -37,9 +40,11 @@ const DEFAULT_SUMMARY_FORM: SummaryFormValue = {
 
 const SUMMARY_TABLE_SCROLL = { x: 900 };
 
+// 学习总结页面
 export function SummaryPage() {
-  const [form] = Form.useForm<SummaryFormValue>();
-  const previewContent = Form.useWatch("content", form);
+  const [form] = Form.useForm<SummaryFormValue>(); // 表单实例
+  // useWatch 监听内容变化
+  const previewContent = Form.useWatch("content", form); // 监听内容变化
   const {
     data,
     detail,
@@ -63,26 +68,26 @@ export function SummaryPage() {
     deleteById,
   } = useSummaryStore(
     useShallow((state) => ({
-      data: state.data,
-      detail: state.detail,
-      loading: state.loading,
-      detailLoading: state.detailLoading,
-      formOpen: state.formOpen,
-      formLoading: state.formLoading,
-      editingId: state.editingId,
-      viewingId: state.viewingId,
-      draftKeyword: state.draftKeyword,
-      setDraftKeyword: state.setDraftKeyword,
-      refreshList: state.refreshList,
-      updateQuery: state.updateQuery,
-      resetFilters: state.resetFilters,
-      openCreate: state.openCreate,
-      openEdit: state.openEdit,
-      openView: state.openView,
-      closeForm: state.closeForm,
-      closeView: state.closeView,
-      submitForm: state.submitForm,
-      deleteById: state.deleteById,
+      data: state.data, // 列表数据
+      detail: state.detail, // 详情数据
+      loading: state.loading, // 表格加载中
+      detailLoading: state.detailLoading, // 详情加载中
+      formOpen: state.formOpen, // 表单打开
+      formLoading: state.formLoading, // 表单加载中
+      editingId: state.editingId, // 正在编辑的 ID
+      viewingId: state.viewingId, // 详情打开
+      draftKeyword: state.draftKeyword, // 搜索关键词
+      setDraftKeyword: state.setDraftKeyword, // 设置搜索关键词
+      refreshList: state.refreshList, // 重新拉取列表
+      updateQuery: state.updateQuery, // 更新查询参数
+      resetFilters: state.resetFilters, // 重置查询参数
+      openCreate: state.openCreate, // 新增表单打开
+      openEdit: state.openEdit, // 编辑表单打开
+      openView: state.openView, // 详情打开
+      closeForm: state.closeForm, // 表单关闭
+      closeView: state.closeView, // 详情关闭
+      submitForm: state.submitForm, // 保存表单
+      deleteById: state.deleteById, // 删除
     })),
   );
 
@@ -90,6 +95,7 @@ export function SummaryPage() {
     void refreshList();
   }, [refreshList]);
 
+  // 搜索学习总结
   const submitSearch = () => {
     void updateQuery((prev) => ({
       ...prev,
@@ -98,13 +104,15 @@ export function SummaryPage() {
     }));
   };
 
+  // 新增学习总结
   const handleOpenCreate = () => {
-    form.setFieldsValue(DEFAULT_SUMMARY_FORM);
-    openCreate();
+    form.setFieldsValue(DEFAULT_SUMMARY_FORM); // 写入默认值
+    openCreate(); // 打开新增弹窗
   };
 
+  // 编辑学习总结
   const handleOpenEdit = useCallback(async (id: number) => {
-    const summary = await openEdit(id);
+    const summary = await openEdit(id); // 打开编辑弹窗
     if (!summary) return;
 
     form.setFieldsValue({
@@ -113,6 +121,7 @@ export function SummaryPage() {
     });
   }, [form, openEdit]);
 
+  // 查看学习总结
   const handleSubmit = async () => {
     const values = await form.validateFields();
     await submitForm(values);
@@ -174,7 +183,7 @@ export function SummaryPage() {
               <Popconfirm
                 title={`确认删除学习总结“${item.title}”吗？`}
                 onConfirm={() => {
-                  void deleteById(item.id);
+                  void deleteById(item.id); // 删除
                 }}
                 okText="确认"
                 cancelText="取消"
@@ -280,7 +289,9 @@ export function SummaryPage() {
         loading={detailLoading}
       >
         <div className="summary-panel">
-          <MarkdownRenderer content={detail?.content ?? ""} />
+          <Suspense fallback={<div className="text-slate-400">正在加载预览...</div>}>
+            <MarkdownRenderer content={detail?.content ?? ""} />
+          </Suspense>
         </div>
       </Modal>
 
@@ -332,9 +343,11 @@ export function SummaryPage() {
                 label: "预览",
                 children: (
                   <div className="summary-panel min-h-90 rounded-4 border-3 border-dashed border-slate-200">
-                    <MarkdownRenderer
-                      content={previewContent || "暂无内容"}
-                    />
+                    <Suspense fallback={<div className="text-slate-400">正在加载预览...</div>}>
+                      <MarkdownRenderer
+                        content={previewContent || "暂无内容"}
+                      />
+                    </Suspense>
                   </div>
                 ),
               },

@@ -6,6 +6,7 @@
 import db from './db.js';
 import bcrypt from 'bcryptjs';
 
+// 初始化数据库
 export function initDatabase() {
   db.exec(`
     CREATE TABLE IF NOT EXISTS users (
@@ -67,10 +68,11 @@ export function initDatabase() {
 
   `);
 
-  seedData();
-  refreshLearningRecords();
+  seedData(); // 初始化业务数据
+  refreshLearningRecords(); // 刷新学习记录
 }
 
+// 刷新学习记录
 function refreshLearningRecords() {
   const studentIds = db.prepare('SELECT id FROM students').all().map((student) => student.id);
   const courseIds = db.prepare('SELECT id FROM courses').all().map((course) => course.id);
@@ -105,6 +107,7 @@ function refreshLearningRecords() {
   }
 }
 
+// 初始化业务数据
 function seedData() {
   const shouldSeedBusinessData =
     db.prepare('SELECT COUNT(*) as count FROM users').get().count === 0;
@@ -193,6 +196,7 @@ function seedData() {
 
 }
 
+// 确保存在默认用户，如果没有则创建
 function ensureDemoUsers() {
   const users = [
     { username: 'admin', password: 'admin123', name: '管理员', role: 'admin' },
@@ -223,6 +227,7 @@ function ensureDemoUsers() {
   migrateDefaultPassword('student', 'student123', '123456');
 }
 
+// 更新默认用户密码
 function migrateDefaultPassword(username, oldPassword, newPassword) {
   const user = db.prepare('SELECT id, password FROM users WHERE username = ?').get(username);
   if (user && bcrypt.compareSync(oldPassword, user.password)) {

@@ -15,6 +15,8 @@ const INITIAL_PASSWORD = '123456';
 const PUBLIC_USER_FIELDS = 'id, username, name, role, avatar, created_at';
 
 // 账号管理：仅返回前端展示需要的字段，避免 password 泄漏。
+// 仅返回教师和学生账号，不返回管理员账号。
+// 分页查询，默认每页 10 条。
 router.get('/users', authenticateToken, requirePermission(PERMISSIONS.ACCOUNTS_VIEW), async (ctx) => {
   const users = db.prepare(`
     SELECT ${PUBLIC_USER_FIELDS}

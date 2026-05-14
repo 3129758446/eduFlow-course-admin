@@ -2,6 +2,7 @@
 模块：前端权限码常量
 定位：集中维护页面、菜单、按钮和路由使用的权限码，避免业务组件散落裸字符串
 约定：权限码格式为 module:action，例如 courses:create
+同步：后端 server/src/permissions.js 是权限判定来源；这里保持同名镜像，用于前端类型提示和 UI 控制。
 */
 export const PERMISSIONS = {
   DASHBOARD_VIEW: "dashboard:view",

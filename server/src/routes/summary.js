@@ -16,6 +16,7 @@ import { success, fail } from '../utils/response.js';
 
 const router = new Router();
 
+// 获取自己的总结列表
 router.get('/', authenticateToken, requirePermission(PERMISSIONS.SUMMARY_VIEW), async (ctx) => {
   const { page = 1, pageSize = 10, keyword = '' } = ctx.query;
   // 服务端兜底分页范围，避免异常 pageSize 一次性拉取过多数据。
@@ -31,6 +32,7 @@ router.get('/', authenticateToken, requirePermission(PERMISSIONS.SUMMARY_VIEW), 
     params.push(`%${keyword}%`, `%${keyword}%`);
   }
 
+  // 获取总结总数，用于分页。
   const total = db.prepare(`SELECT COUNT(*) as count FROM learning_summaries ${where}`)
     .get(...params).count;
   const list = db.prepare(`
@@ -49,6 +51,7 @@ router.get('/', authenticateToken, requirePermission(PERMISSIONS.SUMMARY_VIEW), 
   });
 });
 
+// 查看自己的总结详情
 router.get('/:id', authenticateToken, requirePermission(PERMISSIONS.SUMMARY_VIEW), async (ctx) => {
   const summary = findOwnSummary(ctx.params.id, ctx.state.user.id);
   if (!summary) {
@@ -58,6 +61,7 @@ router.get('/:id', authenticateToken, requirePermission(PERMISSIONS.SUMMARY_VIEW
   success(ctx, summary);
 });
 
+// 新增自己的总结
 router.post('/', authenticateToken, requirePermission(PERMISSIONS.SUMMARY_CREATE), async (ctx) => {
   const payload = parseSummaryPayload(ctx.request.body);
   if (payload.error) {
@@ -74,6 +78,7 @@ router.post('/', authenticateToken, requirePermission(PERMISSIONS.SUMMARY_CREATE
   success(ctx, summary);
 });
 
+// 编辑自己的总结
 router.put('/:id', authenticateToken, requirePermission(PERMISSIONS.SUMMARY_UPDATE), async (ctx) => {
   const existing = findOwnSummary(ctx.params.id, ctx.state.user.id);
   if (!existing) {
@@ -94,6 +99,7 @@ router.put('/:id', authenticateToken, requirePermission(PERMISSIONS.SUMMARY_UPDA
   success(ctx, findOwnSummary(ctx.params.id, ctx.state.user.id));
 });
 
+// 删除自己的总结
 router.delete('/:id', authenticateToken, requirePermission(PERMISSIONS.SUMMARY_DELETE), async (ctx) => {
   const existing = findOwnSummary(ctx.params.id, ctx.state.user.id);
   if (!existing) {
@@ -105,6 +111,7 @@ router.delete('/:id', authenticateToken, requirePermission(PERMISSIONS.SUMMARY_D
   success(ctx, null, '删除成功');
 });
 
+// 查找自己的总结
 function findOwnSummary(id, userId) {
   // 所有详情、编辑、删除都必须同时匹配 id 和 user_id，这是本模块的数据隔离核心。
   return db.prepare(`
@@ -114,6 +121,7 @@ function findOwnSummary(id, userId) {
   `).get(id, userId);
 }
 
+// 学习总结 payload 解析函数
 function parseSummaryPayload(body = {}) {
   const title = String(body.title ?? '').trim();
   const content = String(body.content ?? '').trim();

@@ -48,9 +48,9 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
   token: initialToken, // 登录成功后更新 token
   user: null, // 登录成功后更新用户信息
   globalError: "", // 错误信息，用于页面级提示
-  setGlobalError: (value) => set({ globalError: value }),
-  hasPermission: (code) => checkPermission(get().user?.permissions, code),
-  hasAnyPermission: (codes) => checkAnyPermission(get().user?.permissions, codes),
+  setGlobalError: (value) => set({ globalError: value }), // 设置全局错误信息
+  hasPermission: (code) => checkPermission(get().user?.permissions, code), // 检查用户是否有指定权限
+  hasAnyPermission: (codes) => checkAnyPermission(get().user?.permissions, codes), // 检查用户是否有任意指定权限
   initializeAuth: async () => {
     // 冷启动期间可能有多个组件同时触发初始化，这里复用同一个 Promise 防止重复请求 /auth/me。
     if (initializePromise) {

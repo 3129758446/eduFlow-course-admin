@@ -18,6 +18,7 @@ import { success, fail } from '../utils/response.js';
 
 const router = new Router();
 
+// 课程列表（搜索/筛选/排序/分页）
 router.get('/', authenticateToken, requirePermission(PERMISSIONS.COURSES_VIEW), async (ctx) => {
   const { keyword = '', status = '', category = '', page = 1, pageSize = 10, sortField = '', sortOrder = '' } = ctx.query;
   const offset = (Number(page) - 1) * Number(pageSize);
@@ -54,6 +55,7 @@ router.get('/', authenticateToken, requirePermission(PERMISSIONS.COURSES_VIEW), 
   success(ctx, { list, total, page: Number(page), pageSize: Number(pageSize) });
 });
 
+// 分类去重列表
 router.get('/categories', authenticateToken, requirePermission(PERMISSIONS.COURSES_VIEW), async (ctx) => {
   const categories = db.prepare("SELECT DISTINCT category FROM courses WHERE category != '' ORDER BY category")
     .all()
@@ -61,6 +63,7 @@ router.get('/categories', authenticateToken, requirePermission(PERMISSIONS.COURS
   success(ctx, categories);
 });
 
+// 课程详情
 router.get('/:id', authenticateToken, requirePermission(PERMISSIONS.COURSES_VIEW), async (ctx) => {
   const course = db.prepare('SELECT * FROM courses WHERE id = ?').get(ctx.params.id);
   if (!course) {
@@ -69,6 +72,7 @@ router.get('/:id', authenticateToken, requirePermission(PERMISSIONS.COURSES_VIEW
   success(ctx, course);
 });
 
+// 新增课程
 router.post('/', authenticateToken, requirePermission(PERMISSIONS.COURSES_CREATE), async (ctx) => {
   const { name, description, instructor, category, status, lesson_count } = ctx.request.body;
 
@@ -87,6 +91,7 @@ router.post('/', authenticateToken, requirePermission(PERMISSIONS.COURSES_CREATE
   success(ctx, course);
 });
 
+// 更新课程
 router.put('/:id', authenticateToken, requirePermission(PERMISSIONS.COURSES_UPDATE), async (ctx) => {
   const existing = db.prepare('SELECT * FROM courses WHERE id = ?').get(ctx.params.id);
   if (!existing) {
@@ -113,6 +118,7 @@ router.put('/:id', authenticateToken, requirePermission(PERMISSIONS.COURSES_UPDA
   success(ctx, course);
 });
 
+// 删除课程
 router.delete('/:id', authenticateToken, requirePermission(PERMISSIONS.COURSES_DELETE), async (ctx) => {
   const existing = db.prepare('SELECT * FROM courses WHERE id = ?').get(ctx.params.id);
   if (!existing) {
@@ -123,6 +129,7 @@ router.delete('/:id', authenticateToken, requirePermission(PERMISSIONS.COURSES_D
   success(ctx, null, '删除成功');
 });
 
+// 切换课程状态（published/draft）
 router.patch('/:id/status', authenticateToken, requirePermission(PERMISSIONS.COURSES_UPDATE), async (ctx) => {
   const existing = db.prepare('SELECT * FROM courses WHERE id = ?').get(ctx.params.id);
   if (!existing) {

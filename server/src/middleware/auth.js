@@ -10,6 +10,7 @@ const JWT_SECRET = 'homework_secret_key_2024';
 
 export { JWT_SECRET };
 
+// 认证中间件：校验 Authorization: Bearer <token>，验证通过将用户写入 ctx.state.user
 export function authenticateToken(ctx, next) {
   const authHeader = ctx.headers['authorization'];
   const token = authHeader && authHeader.split(' ')[1];
@@ -29,7 +30,7 @@ export function authenticateToken(ctx, next) {
     ctx.body = { code: 401, msg: '令牌无效或已过期', data: null };
   }
 }
-
+ // 权限中间件：校验用户是否有指定权限
 export function requirePermission(permission) {
   return async (ctx, next) => {
     const role = ctx.state.user?.role;

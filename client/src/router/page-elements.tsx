@@ -5,19 +5,41 @@
 用法：LoginRouteElement/ProtectedLayoutElement 作为 routes.tsx 的 element
 学习要点：受保护路由用 Navigate 重定向未登录用户；退出后清空并跳转登录
 */
+import { lazy, Suspense, type ReactNode } from "react";
 import { Navigate, Outlet, useLocation, useNavigate } from "react-router-dom";
 import { LoadingScreen } from "../components/feedback";
 import { AppShell } from "../layouts/AppShell";
-import { LoginPage } from "../pages/LoginPage";
-import { AccountsPage } from "../pages/AccountsPage";
-import { CoursesPage } from "../pages/CoursesPage";
-import { DashboardPage } from "../pages/DashboardPage";
-import { StudentsPage } from "../pages/StudentsPage";
-import { SummaryPage } from "../pages/SummaryPage";
-import { ForbiddenPage } from "../pages/ForbiddenPage";
 import { useRouterAuth } from "./use-router-auth";
 import { getRouteKeyFromPathname } from "./route-meta";
 import { getFirstAccessibleRoute } from "./nav-config";
+
+// 懒加载页面组件
+const LoginPage = lazy(() =>
+  import("../pages/LoginPage").then((module) => ({ default: module.LoginPage })),
+);
+const DashboardPage = lazy(() =>
+  import("../pages/DashboardPage").then((module) => ({ default: module.DashboardPage })),
+);
+const CoursesPage = lazy(() =>
+  import("../pages/CoursesPage").then((module) => ({ default: module.CoursesPage })),
+);
+const StudentsPage = lazy(() =>
+  import("../pages/StudentsPage").then((module) => ({ default: module.StudentsPage })),
+);
+const SummaryPage = lazy(() =>
+  import("../pages/SummaryPage").then((module) => ({ default: module.SummaryPage })),
+);
+const AccountsPage = lazy(() =>
+  import("../pages/AccountsPage").then((module) => ({ default: module.AccountsPage })),
+);
+const ForbiddenPage = lazy(() =>
+  import("../pages/ForbiddenPage").then((module) => ({ default: module.ForbiddenPage })),
+);
+
+function renderLazyPage(children: ReactNode) {
+  // 页面组件按路由拆包加载，fallback 复用现有全屏 loading，避免出现空白跳转。
+  return <Suspense fallback={<LoadingScreen text="正在加载页面..." />}>{children}</Suspense>;
+}
 
 export function LoginRouteElement() {
   const { authLoading, token, user, globalError, setGlobalError, handleLogin } =
@@ -39,12 +61,12 @@ export function LoginRouteElement() {
   }
 
   // 未登录用户访问 /login 时展示登录页。
-  return (
+  return renderLazyPage(
     <LoginPage
       onLogin={handleLogin}
       error={globalError} 
       setError={setGlobalError}
-    />
+    />,
   );
 }
 
@@ -96,7 +118,7 @@ export function ProtectedLayoutElement() {
 }
 
 export function DashboardRouteElement() {
-  return <DashboardPage />;
+  return renderLazyPage(<DashboardPage />);
 }
 
 export function DefaultRouteElement() {
@@ -110,21 +132,21 @@ export function DefaultRouteElement() {
 }
 
 export function CoursesRouteElement() {
-  return <CoursesPage />;
+  return renderLazyPage(<CoursesPage />);
 }
 
 export function StudentsRouteElement() {
-  return <StudentsPage />;
+  return renderLazyPage(<StudentsPage />);
 }
 
 export function SummaryRouteElement() {
-  return <SummaryPage />;
+  return renderLazyPage(<SummaryPage />);
 }
 
 export function ForbiddenRouteElement() {
-  return <ForbiddenPage />;
+  return renderLazyPage(<ForbiddenPage />);
 }
 
 export function AccountsRouteElement() {
-  return <AccountsPage />;
+  return renderLazyPage(<AccountsPage />);
 }
