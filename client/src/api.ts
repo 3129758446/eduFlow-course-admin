@@ -223,6 +223,18 @@ export function deleteSummary(id: number) {
   });
 }
 
+// 上传学习总结图片
+export function uploadSummaryImage(file: File) {
+  const formData = new FormData();
+  formData.append('file', file);
+
+  return request<{ url: string; filename: string }>({
+    url: '/upload/summary-image',
+    method: 'POST',
+    data: formData,
+  });
+}
+
 // 获取账号列表
 export function fetchAccounts() {
   return request<AccountUser[]>({ url: '/system/users' });

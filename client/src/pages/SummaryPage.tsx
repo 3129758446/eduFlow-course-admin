@@ -9,25 +9,31 @@ import {
   EyeOutlined,
   PlusOutlined,
   SearchOutlined,
+  UploadOutlined,
 } from "@ant-design/icons";
 import {
   Button,
   Form,
   Input,
+  message,
   Modal,
   Popconfirm,
   Space,
   Table,
   Tabs,
+  Upload,
 } from "antd";
 import type { ColumnsType } from "antd/es/table";
+import type { UploadProps } from "antd";
 import { lazy, Suspense, useCallback, useEffect, useMemo } from "react";
 import { useShallow } from "zustand/react/shallow";
+import { uploadSummaryImage } from "../api";
 import { Permission } from "../components/Permission";
 import { Card, PaginationBar } from "../components/ui";
 import { PERMISSIONS } from "../permissions";
 import { useSummaryStore } from "../stores/summary-store";
 import type { SummaryFormValue, SummaryListItem } from "../types";
+import { appErrorMessage } from "../utils/text";
 
 const MarkdownRenderer = lazy(() =>
   import("../markdown").then((module) => ({ default: module.MarkdownRenderer })),
@@ -126,6 +132,41 @@ export function SummaryPage() {
     const values = await form.validateFields();
     await submitForm(values);
   };
+
+  const uploadProps = useMemo<UploadProps>(
+    () => ({
+      accept: "image/png,image/jpeg,image/webp,image/gif",
+      showUploadList: false,
+      beforeUpload: async (file) => {
+        const allowTypes = ["image/png", "image/jpeg", "image/webp", "image/gif"];
+        if (!allowTypes.includes(file.type)) {
+          message.error("仅支持 png、jpg、jpeg、webp、gif 图片");
+          return Upload.LIST_IGNORE;
+        }
+        if (file.size > 5 * 1024 * 1024) {
+          message.error("图片不能超过 5MB");
+          return Upload.LIST_IGNORE;
+        }
+
+        try {
+          const result = await uploadSummaryImage(file);
+          const currentContent = form.getFieldValue("content") || "";
+          const imageMarkdown = `![${file.name}](${result.url})`;
+          // 上传成功后自动追加 Markdown 图片语法，用户可以继续编辑标题或说明文本。
+          form.setFieldValue(
+            "content",
+            currentContent ? `${currentContent}\n\n${imageMarkdown}` : imageMarkdown,
+          );
+          message.success("图片已插入总结");
+        } catch (error) {
+          message.error(appErrorMessage(error));
+        }
+
+        return Upload.LIST_IGNORE;
+      },
+    }),
+    [form],
+  );
 
   const columns = useMemo<ColumnsType<SummaryListItem>>(
     () => [
@@ -327,15 +368,22 @@ export function SummaryPage() {
                 key: "edit",
                 label: "编辑",
                 children: (
-                  <Form.Item
-                    name="content"
-                    rules={[{ required: true, message: "请输入总结内容" }]}
-                  >
-                    <Input.TextArea
-                      placeholder="支持 Markdown，例如：# 本周总结"
-                      rows={15}
-                    />
-                  </Form.Item>
+                  <>
+                    <div className="mb-3 flex justify-end">
+                      <Upload {...uploadProps}>
+                        <Button icon={<UploadOutlined />}>上传图片</Button>
+                      </Upload>
+                    </div>
+                    <Form.Item
+                      name="content"
+                      rules={[{ required: true, message: "请输入总结内容" }]}
+                    >
+                      <Input.TextArea
+                        placeholder="支持 Markdown，例如：# 本周总结"
+                        rows={15}
+                      />
+                    </Form.Item>
+                  </>
                 ),
               },
               {

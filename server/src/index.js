@@ -19,6 +19,7 @@ import studentRoutes from './routes/students.js';
 import summaryRoutes from './routes/summary.js';
 import systemRoutes from './routes/system.js';
 import staticRoutes from './routes/static.js';
+import uploadRoutes from './routes/upload.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -65,6 +66,7 @@ router.use('/api/students', studentRoutes.routes());
 router.use('/api/summary', summaryRoutes.routes());
 router.use('/api/system', systemRoutes.routes());
 router.use('/api/static', staticRoutes.routes());
+router.use('/api/upload', uploadRoutes.routes());
 
 app.use(router.routes());
 app.use(router.allowedMethods());
