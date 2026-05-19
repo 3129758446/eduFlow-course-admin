@@ -1,2 +1,5 @@
-# 忽略所有 .md 文档
+# Ignore local study/interview notes.
 *.md
+
+# Keep the public project README in the remote repository.
+!README.md
