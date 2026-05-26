@@ -13,7 +13,7 @@ import {
   ForbiddenRouteElement,
   LoginRouteElement,
   ProtectedLayoutElement,
-  StudentsRouteElement,
+  StudentsRouteElement,  
   SummaryRouteElement,
 } from './page-elements';
 import { PERMISSIONS } from '../permissions';

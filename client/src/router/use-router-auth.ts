@@ -9,6 +9,7 @@ import { useAuthStore } from '../stores/auth-store';
 
 export function useRouterAuth() {
   return useAuthStore(
+    // 仅浅比较 auth store 字段，避免路由层重复渲染。
     useShallow((state) => ({
       authLoading: state.authLoading,
       initialized: state.initialized,

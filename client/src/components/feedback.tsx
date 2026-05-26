@@ -5,6 +5,7 @@
 */
 import { Empty, Spin } from 'antd';
 
+// 全屏加载组件
 export function LoadingScreen({ text }: { text: string }) {
   return (
     <div className="flex min-h-screen items-center justify-center bg-[linear-gradient(180deg,#f8fbff_0%,#eef6ff_45%,#f8fafc_100%)] px-6">
@@ -16,6 +17,7 @@ export function LoadingScreen({ text }: { text: string }) {
   );
 }
 
+// 面板加载组件
 export function PanelLoading({ text }: { text: string }) {
   return (
     <div className="flex min-h-56 items-center justify-center">
@@ -27,6 +29,7 @@ export function PanelLoading({ text }: { text: string }) {
   );
 }
 
+// 空状态组件
 export function EmptyState({ title }: { title: string }) {
   return (
     <div className="flex min-h-64 items-center justify-center">

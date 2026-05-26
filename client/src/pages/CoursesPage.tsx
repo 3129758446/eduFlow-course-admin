@@ -36,6 +36,7 @@ import { useCourseStore } from "../stores/course-store";
 import type { Course, CourseFormValue } from "../types";
 import { parseMaybeChinese } from "../utils/text";
 
+// 课程管理页面
 export function CoursesPage() {
   const [form] = Form.useForm<CourseFormValue>();
   const setGlobalError = useAuthStore((state) => state.setGlobalError);
@@ -107,11 +108,11 @@ export function CoursesPage() {
   // 编辑时先拉详情再回填表单，保证弹窗里显示的是服务端最新数据。
   const handleOpenEdit = useCallback(async (id: number) => {
     // 编辑先拉详情再回填表单，保证弹窗里显示的是服务端最新数据。
-    const detail = await openEdit(id);
+    const detail = await openEdit(id); // 异步打开编辑弹窗，获取课程详情。
     if (!detail) {
       return;
     }
-
+    // 编辑时回填表单数据，避免用户手动修改后提交时丢失。
     form.setFieldsValue({
       name: detail.name,
       description: detail.description,
@@ -298,6 +299,7 @@ export function CoursesPage() {
     ],
     [deleteCourseById, handleOpenEdit, toggleCourseStatusById, updateQuery],
   );
+  // 过滤出当前用户可见的列，避免显示无权限的列。
   const visibleColumns = useMemo(
     () =>
       canOperateCourse

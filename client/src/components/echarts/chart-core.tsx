@@ -83,7 +83,7 @@ export function ChartContainer({
   useEffect(() => {
     // notMerge=true 保证每次都以最新配置重绘，避免不同图表状态相互污染。
     const setOptionConfig: SetOptionOpts = { notMerge: true }; // 更新图表配置选项
-    instanceRef.current?.setOption(option, setOptionConfig); // 更新图表配置
+    instanceRef.current?.setOption(option, setOptionConfig); // 更新图表配置   
   }, [option]);
 
   return <div ref={chartRef} className={`w-full ${className}`} />;

@@ -82,7 +82,7 @@ export function ProtectedLayoutElement() {
   } = useRouterAuth();
   const navigate = useNavigate();
   const location = useLocation();
-
+                                    
   if (authLoading) {
     // 受保护路由与登录页保持一致：初始化期间只展示统一 loading 态。
     return <LoadingScreen text="正在校验登录状态..." />;

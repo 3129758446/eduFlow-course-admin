@@ -17,6 +17,7 @@ type PermissionProps = {
   children: ReactNode;
 };
 
+// 权限展示组件
 export function Permission({
   code,
   any,

@@ -28,6 +28,7 @@ import { pageAfterDelete } from "../utils/pagination";
 import { registerStoreResetter } from "./reset-registry";
 import { clearGlobalError, setGlobalError } from "./store-error";
 
+// 默认课程查询参数
 const defaultCourseQuery: CourseQuery = {
   keyword: "",
   status: "",
