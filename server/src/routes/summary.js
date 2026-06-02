@@ -15,6 +15,7 @@ import { PERMISSIONS } from '../permissions.js';
 import { success, fail } from '../utils/response.js';
 
 const router = new Router();
+const CHINA_TIME_OFFSET = '+8 hours';
 
 // 获取自己的总结列表
 router.get('/', authenticateToken, requirePermission(PERMISSIONS.SUMMARY_VIEW), async (ctx) => {
@@ -36,10 +37,14 @@ router.get('/', authenticateToken, requirePermission(PERMISSIONS.SUMMARY_VIEW), 
   const total = db.prepare(`SELECT COUNT(*) as count FROM learning_summaries ${where}`)
     .get(...params).count;
   const list = db.prepare(`
-    SELECT id, title, created_at, updated_at
+    SELECT
+      id,
+      title,
+      datetime(created_at, '${CHINA_TIME_OFFSET}') AS created_at,
+      datetime(updated_at, '${CHINA_TIME_OFFSET}') AS updated_at
     FROM learning_summaries
     ${where}
-    ORDER BY updated_at DESC, id DESC
+    ORDER BY learning_summaries.updated_at DESC, id DESC
     LIMIT ? OFFSET ?
   `).all(...params, normalizedPageSize, offset);
 
@@ -115,8 +120,13 @@ router.delete('/:id', authenticateToken, requirePermission(PERMISSIONS.SUMMARY_D
 function findOwnSummary(id, userId) {
   // 所有详情、编辑、删除都必须同时匹配 id 和 user_id，这是本模块的数据隔离核心。
   return db.prepare(`
-    SELECT id, title, content, created_at, updated_at
-    FROM learning_summaries
+    SELECT
+      id,
+      title,
+      content,
+      datetime(created_at, '${CHINA_TIME_OFFSET}') AS created_at,
+      datetime(updated_at, '${CHINA_TIME_OFFSET}') AS updated_at
+     FROM learning_summaries
     WHERE id = ? AND user_id = ?
   `).get(id, userId);
 }

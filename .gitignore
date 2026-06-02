@@ -3,3 +3,5 @@
 
 # Keep the public project README in the remote repository.
 !README.md
+
+dist/
