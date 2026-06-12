@@ -5,3 +5,9 @@
 !README.md
 
 dist/
+
+*.db
+*.sqlite
+*.sqlite3
+server/data/
+server/database/

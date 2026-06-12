@@ -41,6 +41,7 @@ function renderLazyPage(children: ReactNode) {
   return <Suspense fallback={<LoadingScreen text="正在加载页面..." />}>{children}</Suspense>;
 }
 
+// 登录页路由元素：未登录展示登录页，已登录直接重定向到第一个有权限的页面。
 export function LoginRouteElement() {
   const { authLoading, token, user, globalError, setGlobalError, handleLogin } =
     useRouterAuth();
@@ -73,7 +74,7 @@ export function LoginRouteElement() {
 // 登录态校验成功后，将所有受保护路由的 element 包一层 AppShell。
 export function ProtectedLayoutElement() {
   const {
-    authLoading,
+    authLoading, // 登录态校验中先展示 loading 态，避免闪烁。
     token,
     user,
     globalError,
