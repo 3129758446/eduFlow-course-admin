@@ -13,6 +13,7 @@ import {
   createRole,
   deleteRole,
   getEffectivePermissions,
+  getPermissionsByRoles,
   listPermissionGroups,
   listRoles,
   updateRoleInfo,
@@ -30,12 +31,13 @@ router.get('/users', authenticateToken, requirePermission(PERMISSIONS.ACCOUNTS_V
     SELECT ${PUBLIC_USER_FIELDS}
     FROM users
     ORDER BY id ASC
-  `).all().map((user) => ({
-    ...user,
-    permissions: getEffectivePermissions(user),
-  }));
+  `).all();
+  const permissionsByRole = getPermissionsByRoles(users.map((user) => user.role));
 
-  success(ctx, users);
+  success(ctx, users.map((user) => ({
+    ...user,
+    permissions: permissionsByRole.get(user.role) ?? [],
+  })));
 });
 
 // 修改账号角色只允许指向已存在的非管理员角色，角色创建由 /roles 接口负责。

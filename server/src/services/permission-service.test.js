@@ -7,6 +7,7 @@ import {
   createRole,
   deleteRole,
   getEffectivePermissions,
+  getPermissionsByRoles,
   listRoles,
   normalizePermissions,
   updateRoleInfo,
@@ -26,6 +27,19 @@ test('admin effective permissions always include every permission', () => {
   assert.deepEqual(
     getEffectivePermissions({ id: 1, role: 'admin' }).sort(),
     Object.values(PERMISSIONS).sort(),
+  );
+});
+
+test('batch role permissions keep admin immutable and read editable roles from database', () => {
+  const permissionsByRole = getPermissionsByRoles(['admin', 'teacher']);
+
+  assert.equal(
+    permissionsByRole.get('admin').length,
+    Object.values(PERMISSIONS).length,
+  );
+  assert.deepEqual(
+    permissionsByRole.get('teacher').sort(),
+    DEFAULT_ROLE_PERMISSIONS.teacher.sort(),
   );
 });
 

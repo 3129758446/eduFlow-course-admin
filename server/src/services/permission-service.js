@@ -57,6 +57,51 @@ export function getPermissionsByRole(roleCode) {
   }
 }
 
+export function getPermissionsByRoles(roleCodes = []) {
+  const uniqueRoleCodes = [...new Set(roleCodes.filter(Boolean))];
+  const permissionsByRole = new Map();
+
+  for (const roleCode of uniqueRoleCodes) {
+    permissionsByRole.set(
+      roleCode,
+      IMMUTABLE_ROLES.includes(roleCode)
+        ? [...ALL_PERMISSIONS]
+        : [],
+    );
+  }
+
+  const editableRoleCodes = uniqueRoleCodes.filter(
+    (roleCode) => !IMMUTABLE_ROLES.includes(roleCode),
+  );
+  if (!editableRoleCodes.length) {
+    return permissionsByRole;
+  }
+
+  try {
+    // 批量读取 role_permissions，避免列表接口为每个用户/角色重复查询权限。
+    const placeholders = editableRoleCodes.map(() => '?').join(', ');
+    const rows = db.prepare(`
+      SELECT role_code, permission_code FROM role_permissions
+      WHERE role_code IN (${placeholders})
+      ORDER BY role_code ASC, permission_code ASC
+    `).all(...editableRoleCodes);
+
+    for (const row of rows) {
+      permissionsByRole.get(row.role_code)?.push(row.permission_code);
+    }
+    return permissionsByRole;
+  } catch (error) {
+    if (error.code !== 'SQLITE_ERROR') {
+      throw error;
+    }
+
+    for (const roleCode of editableRoleCodes) {
+      permissionsByRole.set(roleCode, DEFAULT_ROLE_PERMISSIONS[roleCode] ?? []);
+    }
+    return permissionsByRole;
+  }
+}
+
 export function getEffectivePermissions(user) {
   return getPermissionsByRole(user?.role);
 }
@@ -67,7 +112,7 @@ export function listPermissionGroups() {
 
 export function listRoles() {
   try {
-    return db.prepare(`
+    const roles = db.prepare(`
       SELECT code, name, description, editable, builtin, deletable
       FROM roles
       ORDER BY
@@ -79,13 +124,18 @@ export function listRoles() {
           ELSE 5
         END,
         code ASC
-    `).all().map((role) => ({
+    `).all();
+    const roleCodes = roles.map((role) => role.code);
+    const permissionsByRole = getPermissionsByRoles(roleCodes);
+    const userCountsByRole = getUserCountsByRoles(roleCodes);
+
+    return roles.map((role) => ({
       ...role,
       editable: Boolean(role.editable) && !IMMUTABLE_ROLES.includes(role.code),
       builtin: Boolean(role.builtin),
       deletable: Boolean(role.deletable) && !IMMUTABLE_ROLES.includes(role.code),
-      userCount: countUsersByRole(role.code),
-      permissions: getPermissionsByRole(role.code),
+      userCount: userCountsByRole.get(role.code) ?? 0,
+      permissions: permissionsByRole.get(role.code) ?? [],
     }));
   } catch (error) {
     if (error.code !== 'SQLITE_ERROR') {
@@ -233,6 +283,24 @@ function createUniqueRoleCode() {
 
 function countUsersByRole(roleCode) {
   return db.prepare('SELECT COUNT(*) as count FROM users WHERE role = ?').get(roleCode).count;
+}
+
+function getUserCountsByRoles(roleCodes = []) {
+  const uniqueRoleCodes = [...new Set(roleCodes.filter(Boolean))];
+  const userCountsByRole = new Map(uniqueRoleCodes.map((roleCode) => [roleCode, 0]));
+  if (!uniqueRoleCodes.length) return userCountsByRole;
+
+  const placeholders = uniqueRoleCodes.map(() => '?').join(', ');
+  const rows = db.prepare(`
+    SELECT role, COUNT(*) as count FROM users
+    WHERE role IN (${placeholders})
+    GROUP BY role
+  `).all(...uniqueRoleCodes);
+
+  for (const row of rows) {
+    userCountsByRole.set(row.role, row.count);
+  }
+  return userCountsByRole;
 }
 
 function replaceRolePermissions(roleCode, permissions) {
