@@ -151,3 +151,7 @@ export function ForbiddenRouteElement() {
 export function AccountsRouteElement() {
   return renderLazyPage(<AccountsPage />);
 }
+
+export function PermissionsRouteElement() {
+  return renderLazyPage(<AccountsPage initialTab="roles" />);
+}

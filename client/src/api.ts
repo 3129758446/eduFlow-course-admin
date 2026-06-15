@@ -246,6 +246,39 @@ export function fetchRoles() {
   return request<Role[]>({ url: '/system/roles' });
 }
 
+// 创建自定义角色
+export function createRole(payload: {
+  name: string;
+  description?: string;
+  permissions?: string[];
+}) {
+  return request<Role>({
+    url: '/system/roles',
+    method: 'POST',
+    data: payload,
+  });
+}
+
+// 更新角色名称/说明
+export function updateRoleInfo(roleCode: string, payload: {
+  name: string;
+  description?: string;
+}) {
+  return request<Role>({
+    url: `/system/roles/${roleCode}`,
+    method: 'PATCH',
+    data: payload,
+  });
+}
+
+// 删除自定义角色
+export function deleteRole(roleCode: string) {
+  return request<null>({
+    url: `/system/roles/${roleCode}`,
+    method: 'DELETE',
+  });
+}
+
 // 获取权限分组
 export function fetchPermissionGroups() {
   return request<PermissionGroup[]>({ url: '/system/permissions' });

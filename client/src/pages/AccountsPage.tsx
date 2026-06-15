@@ -4,6 +4,7 @@
 */
 import {
   DeleteOutlined,
+  EditOutlined,
   PlusOutlined,
   ReloadOutlined,
   SaveOutlined,
@@ -25,13 +26,17 @@ import {
 } from "antd";
 import type { ColumnsType } from "antd/es/table";
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import {
   createAccount,
+  createRole,
   deleteAccount,
+  deleteRole,
   fetchAccounts,
   fetchPermissionGroups,
   fetchRoles,
   updateAccountRole,
+  updateRoleInfo,
   updateRolePermissions,
 } from "../api";
 import { Permission } from "../components/Permission";
@@ -46,10 +51,24 @@ type AccountFormValue = {
   role: string;
 };
 
-const MANAGED_ROLES = ["teacher", "student", "custom"];
+type RoleFormValue = {
+  name: string;
+  description?: string;
+};
 
-export function AccountsPage() {
+type AccountsPageProps = {
+  initialTab?: "accounts" | "roles";
+};
+
+function displayRoleCode(role: Role) {
+  if (!role.builtin) return "custom";
+  return role.code;
+}
+
+export function AccountsPage({ initialTab = "accounts" }: AccountsPageProps) {
   const [form] = Form.useForm<AccountFormValue>();
+  const [roleForm] = Form.useForm<RoleFormValue>();
+  const navigate = useNavigate();
   const [accounts, setAccounts] = useState<AccountUser[]>([]);
   const [roles, setRoles] = useState<Role[]>([]);
   const [permissionGroups, setPermissionGroups] = useState<PermissionGroup[]>([]);
@@ -62,13 +81,18 @@ export function AccountsPage() {
   const [permissionRole, setPermissionRole] = useState<Role | null>(null);
   const [selectedPermissions, setSelectedPermissions] = useState<PermissionCode[]>([]);
   const [permissionSaving, setPermissionSaving] = useState(false);
+  const [roleModalOpen, setRoleModalOpen] = useState(false);
+  const [editingRole, setEditingRole] = useState<Role | null>(null);
+  const [roleSaving, setRoleSaving] = useState(false);
+  const [deletingRoleCode, setDeletingRoleCode] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState(initialTab);
 
   const roleNameMap = useMemo(
     () => Object.fromEntries(roles.map((role) => [role.code, role.name])),
     [roles],
   );
   const manageableRoles = useMemo(
-    () => roles.filter((role) => MANAGED_ROLES.includes(role.code)),
+    () => roles.filter((role) => role.code !== "admin"),
     [roles],
   );
 
@@ -99,6 +123,20 @@ export function AccountsPage() {
     });
   }, [loadData]);
 
+  useEffect(() => {
+    setActiveTab(initialTab);
+  }, [initialTab]);
+
+  const refreshRoles = useCallback(async () => {
+    setRoles(await fetchRoles());
+  }, []);
+
+  const handleTabChange = useCallback((key: string) => {
+    const nextTab = key as "accounts" | "roles";
+    setActiveTab(nextTab);
+    navigate(nextTab === "roles" ? "/permissions" : "/accounts");
+  }, [navigate]);
+
   const handleSaveRole = useCallback(async (account: AccountUser) => {
     const nextRole = draftRoles[account.id];
     if (!nextRole || nextRole === account.role) return;
@@ -109,13 +147,14 @@ export function AccountsPage() {
       setAccounts((prev) =>
         prev.map((item) => (item.id === updated.id ? updated : item)),
       );
+      await refreshRoles();
       message.success("角色已更新");
     } catch (error) {
       message.error(appErrorMessage(error));
     } finally {
       setSavingId(null);
     }
-  }, [draftRoles]);
+  }, [draftRoles, refreshRoles]);
 
   const handleCreateAccount = useCallback(async () => {
     try {
@@ -124,6 +163,7 @@ export function AccountsPage() {
       const created = await createAccount(values);
       setAccounts((prev) => [...prev, created]);
       setDraftRoles((prev) => ({ ...prev, [created.id]: created.role }));
+      await refreshRoles();
       setCreateOpen(false);
       form.resetFields();
       message.success("账号已创建，初始密码为 123456");
@@ -134,7 +174,7 @@ export function AccountsPage() {
     } finally {
       setCreating(false);
     }
-  }, [form]);
+  }, [form, refreshRoles]);
 
   const handleDeleteAccount = useCallback(async (account: AccountUser) => {
     setDeletingId(account.id);
@@ -146,13 +186,14 @@ export function AccountsPage() {
         delete next[account.id];
         return next;
       });
+      await refreshRoles();
       message.success("账号已删除");
     } catch (error) {
       message.error(appErrorMessage(error));
     } finally {
       setDeletingId(null);
     }
-  }, []);
+  }, [refreshRoles]);
 
   const openPermissionModal = useCallback((role: Role) => {
     setPermissionRole(role);
@@ -202,6 +243,60 @@ export function AccountsPage() {
       setPermissionSaving(false);
     }
   }, [permissionRole, selectedPermissions]);
+
+  const openCreateRoleModal = useCallback(() => {
+    setEditingRole(null);
+    roleForm.resetFields();
+    setRoleModalOpen(true);
+  }, [roleForm]);
+
+  const openEditRoleModal = useCallback((role: Role) => {
+    setEditingRole(role);
+    roleForm.setFieldsValue({
+      name: parseMaybeChinese(role.name),
+      description: parseMaybeChinese(role.description),
+    });
+    setRoleModalOpen(true);
+  }, [roleForm]);
+
+  const handleSaveRoleInfo = useCallback(async () => {
+    try {
+      const values = await roleForm.validateFields();
+      setRoleSaving(true);
+      const saved = editingRole
+        ? await updateRoleInfo(editingRole.code, values)
+        : await createRole({ ...values, permissions: [] });
+
+      setRoles((prev) =>
+        editingRole
+          ? prev.map((role) => (role.code === saved.code ? saved : role))
+          : [...prev, saved],
+      );
+      setRoleModalOpen(false);
+      setEditingRole(null);
+      roleForm.resetFields();
+      message.success(editingRole ? "角色信息已更新" : "角色已创建");
+    } catch (error) {
+      if (error instanceof Error) {
+        message.error(appErrorMessage(error));
+      }
+    } finally {
+      setRoleSaving(false);
+    }
+  }, [editingRole, roleForm]);
+
+  const handleDeleteRole = useCallback(async (role: Role) => {
+    setDeletingRoleCode(role.code);
+    try {
+      await deleteRole(role.code);
+      setRoles((prev) => prev.filter((item) => item.code !== role.code));
+      message.success("角色已删除");
+    } catch (error) {
+      message.error(appErrorMessage(error));
+    } finally {
+      setDeletingRoleCode(null);
+    }
+  }, []);
 
   const accountColumns = useMemo<ColumnsType<AccountUser>>(
     () => [
@@ -321,11 +416,18 @@ export function AccountsPage() {
         title: "角色",
         dataIndex: "name",
         key: "name",
-        width: "20%",
+        width: "22%",
         render: (value, role) => (
           <div>
             <span className="list-title">{parseMaybeChinese(value)}</span>
-            <div className="list-subtitle mt-1">{role.code}</div>
+            <div className="mt-1 flex flex-wrap items-center gap-2">
+              <span className="list-subtitle" title={role.code}>
+                {displayRoleCode(role)}
+              </span>
+              <Tag className={role.builtin ? "list-status list-status--success" : "list-chip list-chip--blue"}>
+                {role.builtin ? "系统默认" : "自定义"}
+              </Tag>
+            </div>
           </div>
         ),
       },
@@ -333,13 +435,21 @@ export function AccountsPage() {
         title: "说明",
         dataIndex: "description",
         key: "description",
-        width: "32%",
+        width: "28%",
         render: (value) => parseMaybeChinese(value || "-"),
+      },
+      {
+        title: "用户数量",
+        key: "userCount",
+        width: "14%",
+        render: (_, role) => (
+          <Tag className="list-chip list-chip--blue">{role.userCount} 个</Tag>
+        ),
       },
       {
         title: "权限数量",
         key: "permissionCount",
-        width: "18%",
+        width: "14%",
         render: (_, role) => (
           <Tag className={role.editable ? "list-chip list-chip--blue" : "list-status list-status--success"}>
             {role.editable ? `${role.permissions.length} 项` : "全部权限"}
@@ -349,45 +459,97 @@ export function AccountsPage() {
       {
         title: "操作",
         key: "actions",
-        width: "30%",
-        render: (_, role) => (
-          <Space className="list-actions" size={0} wrap>
-            <Button
-              type="link"
-              icon={<SettingOutlined />}
-              disabled={!role.editable}
-              onClick={() => openPermissionModal(role)}
-            >
-              配置权限
-            </Button>
-            {!role.editable ? (
-              <span className="text-slate-400">管理员权限不可修改</span>
-            ) : null}
-          </Space>
-        ),
+        width: "22%",
+        render: (_, role) => {
+          if (!role.editable) {
+            return <span className="text-slate-400">管理员权限不可修改</span>;
+          }
+
+          return (
+            <Space className="list-actions" size={0} wrap>
+              <Button
+                type="link"
+                icon={<SettingOutlined />}
+                onClick={() => openPermissionModal(role)}
+              >
+                配置权限
+              </Button>
+              {!role.builtin ? (
+                <>
+                  <Button
+                    type="link"
+                    icon={<EditOutlined />}
+                    onClick={() => openEditRoleModal(role)}
+                  >
+                    编辑
+                  </Button>
+                  <Popconfirm
+                    title={
+                      role.userCount > 0
+                        ? `该角色下还有 ${role.userCount} 个用户，请先转移用户`
+                        : `确认删除角色“${parseMaybeChinese(role.name)}”吗？`
+                    }
+                    disabled={!role.deletable || role.userCount > 0}
+                    onConfirm={() => {
+                      void handleDeleteRole(role);
+                    }}
+                    okButtonProps={{ loading: deletingRoleCode === role.code }}
+                    okText="确认"
+                    cancelText="取消"
+                  >
+                    <Button
+                      danger
+                      type="link"
+                      icon={<DeleteOutlined />}
+                      disabled={!role.deletable || role.userCount > 0}
+                      loading={deletingRoleCode === role.code}
+                    >
+                      删除
+                    </Button>
+                  </Popconfirm>
+                </>
+              ) : null}
+            </Space>
+          );
+        },
       },
     ],
-    [openPermissionModal],
+    [deletingRoleCode, handleDeleteRole, openEditRoleModal, openPermissionModal],
   );
 
   return (
     <div className="w-full space-y-6">
       <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-        <h2 className="m-0 text-4xl font-extrabold text-slate-900">账号管理</h2>
+        <h2 className="m-0 text-4xl font-extrabold text-slate-900">
+          {activeTab === "roles" ? "权限管理" : "账号管理"}
+        </h2>
         <Space wrap>
-          <Permission code={PERMISSIONS.ACCOUNTS_UPDATE_ROLE}>
-            <Button
-              type="primary"
-              icon={<PlusOutlined />}
-              onClick={() => {
-                form.setFieldsValue({ role: "student" });
-                setCreateOpen(true);
-              }}
-              className="manage-action-button bg-sky-200 text-lg font-bold text-slate-900"
-            >
-              新增账号
-            </Button>
-          </Permission>
+          {activeTab === "accounts" ? (
+            <Permission code={PERMISSIONS.ACCOUNTS_UPDATE_ROLE}>
+              <Button
+                type="primary"
+                icon={<PlusOutlined />}
+                onClick={() => {
+                  form.setFieldsValue({ role: "student" });
+                  setCreateOpen(true);
+                }}
+                className="manage-action-button bg-sky-200 text-lg font-bold text-slate-900"
+              >
+                新增账号
+              </Button>
+            </Permission>
+          ) : (
+            <Permission code={PERMISSIONS.ACCOUNTS_UPDATE_ROLE}>
+              <Button
+                type="primary"
+                icon={<PlusOutlined />}
+                onClick={openCreateRoleModal}
+                className="manage-action-button bg-sky-200 text-lg font-bold text-slate-900"
+              >
+                新增角色
+              </Button>
+            </Permission>
+          )}
           <Button
             icon={<ReloadOutlined />}
             onClick={() => {
@@ -402,6 +564,8 @@ export function AccountsPage() {
 
       <Card title="" className="manage-card">
         <Tabs
+          activeKey={activeTab}
+          onChange={handleTabChange}
           items={[
             {
               key: "accounts",
@@ -431,7 +595,7 @@ export function AccountsPage() {
                   columns={roleColumns}
                   loading={loading}
                   pagination={false}
-                  scroll={{ x: 760 }}
+                  scroll={{ x: 920 }}
                   className="course-table-like manage-table"
                   locale={{ emptyText: "暂无角色数据" }}
                 />
@@ -494,6 +658,44 @@ export function AccountsPage() {
           <div className="rounded-4 border-3 border-dashed border-slate-200 p-4 text-base text-slate-500">
             新账号初始密码固定为 123456，用户登录后可在右上角修改密码。
           </div>
+        </Form>
+      </Modal>
+
+      <Modal
+        open={roleModalOpen}
+        title={editingRole ? "编辑自定义角色" : "新增自定义角色"}
+        onCancel={() => {
+          if (!roleSaving) {
+            setRoleModalOpen(false);
+            setEditingRole(null);
+            roleForm.resetFields();
+          }
+        }}
+        onOk={handleSaveRoleInfo}
+        confirmLoading={roleSaving}
+        okText={editingRole ? "保存" : "创建"}
+        cancelText="取消"
+        centered
+        destroyOnHidden
+        className="manage-modal"
+      >
+        <Form form={roleForm} layout="vertical" className="pt-4">
+          <Form.Item
+            label="角色名称"
+            name="name"
+            rules={[
+              { required: true, message: "请输入角色名称" },
+              { max: 30, message: "角色名称不能超过 30 个字符" },
+            ]}
+          >
+            <Input placeholder="例如：助教、班主任、教务老师" />
+          </Form.Item>
+          <Form.Item label="角色说明" name="description">
+            <Input.TextArea
+              rows={3}
+              placeholder="可选，用于说明这个角色适合哪些账号"
+            />
+          </Form.Item>
         </Form>
       </Modal>
 

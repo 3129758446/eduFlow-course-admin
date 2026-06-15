@@ -163,6 +163,9 @@ export type Role = {
   name: string;
   description: string;
   editable: boolean;
+  builtin: boolean;
+  deletable: boolean;
+  userCount: number;
   permissions: PermissionCode[];
 };
 

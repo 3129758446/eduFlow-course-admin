@@ -12,6 +12,7 @@ import {
   DefaultRouteElement,
   ForbiddenRouteElement,
   LoginRouteElement,
+  PermissionsRouteElement,
   ProtectedLayoutElement,
   StudentsRouteElement,  
   SummaryRouteElement,
@@ -69,6 +70,14 @@ export const router = createBrowserRouter([
         element: (
           <RequirePermission code={PERMISSIONS.ACCOUNTS_VIEW}>
             <AccountsRouteElement />
+          </RequirePermission>
+        ),
+      },
+      {
+        path: 'permissions',
+        element: (
+          <RequirePermission code={PERMISSIONS.ACCOUNTS_VIEW}>
+            <PermissionsRouteElement />
           </RequirePermission>
         ),
       },

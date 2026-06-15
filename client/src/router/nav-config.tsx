@@ -7,6 +7,7 @@ import {
   BarChartOutlined,
   BookOutlined,
   FileTextOutlined,
+  SafetyCertificateOutlined,
   SolutionOutlined,
   TeamOutlined,
 } from "@ant-design/icons";
@@ -56,6 +57,13 @@ export const navItems: NavItem[] = [
     path: "/accounts",
     icon: <SolutionOutlined />,
     label: "账号管理",
+    permission: PERMISSIONS.ACCOUNTS_VIEW,
+  },
+  {
+    key: "permissions",
+    path: "/permissions",
+    icon: <SafetyCertificateOutlined />,
+    label: "权限管理",
     permission: PERMISSIONS.ACCOUNTS_VIEW,
   },
 ];

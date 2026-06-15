@@ -7,11 +7,15 @@ import Router from '@koa/router';
 import bcrypt from 'bcryptjs';
 import db from '../database/db.js';
 import { authenticateToken, requirePermission } from '../middleware/auth.js';
-import { MANAGED_ROLES, PERMISSIONS } from '../permissions.js';
+import { PERMISSIONS } from '../permissions.js';
 import {
+  canAssignRole,
+  createRole,
+  deleteRole,
   getEffectivePermissions,
   listPermissionGroups,
   listRoles,
+  updateRoleInfo,
   updateRolePermissions,
 } from '../services/permission-service.js';
 import { success, fail } from '../utils/response.js';
@@ -52,8 +56,8 @@ router.patch('/users/:id/role', authenticateToken, requirePermission(PERMISSIONS
   if (targetUser.role === 'admin') {
     return fail(ctx, 400, '管理员账号角色不可修改');
   }
-  if (!MANAGED_ROLES.includes(role)) {
-    return fail(ctx, 400, '只能分配教师、学生或自定义角色');
+  if (!canAssignRole(role)) {
+    return fail(ctx, 400, '只能分配已有的非管理员角色');
   }
 
   db.prepare('UPDATE users SET role = ? WHERE id = ?').run(role, userId);
@@ -68,8 +72,8 @@ router.post('/users', authenticateToken, requirePermission(PERMISSIONS.ACCOUNTS_
   if (!username || !name || !role) {
     return fail(ctx, 400, '账号、姓名和角色不能为空');
   }
-  if (!MANAGED_ROLES.includes(role)) {
-    return fail(ctx, 400, '只能新增教师、学生或自定义账号');
+  if (!canAssignRole(role)) {
+    return fail(ctx, 400, '只能新增已有非管理员角色账号');
   }
 
   const existing = db.prepare('SELECT id FROM users WHERE username = ?').get(username);
@@ -100,8 +104,8 @@ router.delete('/users/:id', authenticateToken, requirePermission(PERMISSIONS.ACC
   if (!targetUser) {
     return fail(ctx, 404, '用户不存在');
   }
-  if (!MANAGED_ROLES.includes(targetUser.role)) {
-    return fail(ctx, 400, '只能删除教师、学生或自定义账号');
+  if (targetUser.role === 'admin') {
+    return fail(ctx, 400, '管理员账号不可删除');
   }
 
   db.prepare('DELETE FROM users WHERE id = ?').run(userId);
@@ -110,6 +114,55 @@ router.delete('/users/:id', authenticateToken, requirePermission(PERMISSIONS.ACC
 
 router.get('/roles', authenticateToken, requirePermission(PERMISSIONS.ACCOUNTS_VIEW), async (ctx) => {
   success(ctx, listRoles());
+});
+
+router.post('/roles', authenticateToken, requirePermission(PERMISSIONS.ACCOUNTS_UPDATE_ROLE), async (ctx) => {
+  if (!isAdmin(ctx)) {
+    return fail(ctx, 403, '只有管理员可以新增角色');
+  }
+
+  try {
+    const role = createRole({
+      name: ctx.request.body?.name,
+      description: ctx.request.body?.description,
+      permissions: Array.isArray(ctx.request.body?.permissions)
+        ? ctx.request.body.permissions
+        : [],
+    });
+    ctx.status = 201;
+    success(ctx, role, '角色创建成功');
+  } catch (error) {
+    fail(ctx, 400, error.message || '角色创建失败');
+  }
+});
+
+router.patch('/roles/:code', authenticateToken, requirePermission(PERMISSIONS.ACCOUNTS_UPDATE_ROLE), async (ctx) => {
+  if (!isAdmin(ctx)) {
+    return fail(ctx, 403, '只有管理员可以修改角色');
+  }
+
+  try {
+    const role = updateRoleInfo(String(ctx.params.code ?? '').trim(), {
+      name: ctx.request.body?.name,
+      description: ctx.request.body?.description,
+    });
+    success(ctx, role, '角色信息已更新');
+  } catch (error) {
+    fail(ctx, 400, error.message || '角色信息修改失败');
+  }
+});
+
+router.delete('/roles/:code', authenticateToken, requirePermission(PERMISSIONS.ACCOUNTS_UPDATE_ROLE), async (ctx) => {
+  if (!isAdmin(ctx)) {
+    return fail(ctx, 403, '只有管理员可以删除角色');
+  }
+
+  try {
+    deleteRole(String(ctx.params.code ?? '').trim());
+    success(ctx, null, '角色删除成功');
+  } catch (error) {
+    fail(ctx, 400, error.message || '角色删除失败');
+  }
 });
 
 router.get('/permissions', authenticateToken, requirePermission(PERMISSIONS.ACCOUNTS_VIEW), async (ctx) => {

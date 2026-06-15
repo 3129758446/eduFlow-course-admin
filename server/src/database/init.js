@@ -72,6 +72,9 @@ export function initDatabase() {
       name TEXT NOT NULL,
       description TEXT DEFAULT '',
       editable INTEGER NOT NULL DEFAULT 1,
+      builtin INTEGER NOT NULL DEFAULT 0,
+      deletable INTEGER NOT NULL DEFAULT 1,
+      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP
     );
 
@@ -102,6 +105,9 @@ export function initDatabase() {
 
 function migratePermissionSchema() {
   ensureColumn('roles', 'editable', 'INTEGER NOT NULL DEFAULT 1');
+  ensureColumn('roles', 'builtin', 'INTEGER NOT NULL DEFAULT 0');
+  ensureColumn('roles', 'deletable', 'INTEGER NOT NULL DEFAULT 1');
+  ensureColumn('roles', 'updated_at', "DATETIME DEFAULT ''");
   db.exec(`
     CREATE UNIQUE INDEX IF NOT EXISTS idx_roles_code ON roles(code);
     CREATE UNIQUE INDEX IF NOT EXISTS idx_permissions_code ON permissions(code);
@@ -157,20 +163,28 @@ function migrateRolePermissionsTable() {
 
 function seedPermissionData() {
   const roles = [
-    { code: 'admin', name: '管理员', description: '拥有全部权限', editable: 0 },
-    { code: 'teacher', name: '教师', description: '可维护课程、学生和学习总结', editable: 1 },
-    { code: 'student', name: '学生', description: '可查看基础数据并维护学习总结', editable: 1 },
-    { code: 'custom', name: '自定义', description: '可由管理员配置权限的自定义角色', editable: 1 },
+    { code: 'admin', name: '管理员', description: '拥有全部权限', editable: 0, builtin: 1, deletable: 0 },
+    { code: 'teacher', name: '教师', description: '可维护课程、学生和学习总结', editable: 1, builtin: 1, deletable: 0 },
+    { code: 'student', name: '学生', description: '可查看基础数据并维护学习总结', editable: 1, builtin: 1, deletable: 0 },
   ];
   const insertRole = db.prepare(`
-    INSERT OR IGNORE INTO roles (code, name, description, editable)
-    VALUES (@code, @name, @description, @editable)
+    INSERT OR IGNORE INTO roles (code, name, description, editable, builtin, deletable)
+    VALUES (@code, @name, @description, @editable, @builtin, @deletable)
   `);
 
   for (const role of roles) {
     insertRole.run(role);
   }
-  db.prepare('UPDATE roles SET editable = 0 WHERE code = ?').run('admin');
+  db.prepare(`
+    UPDATE roles
+    SET editable = 0, builtin = 1, deletable = 0
+    WHERE code = ?
+  `).run('admin');
+  db.prepare(`
+    UPDATE roles
+    SET builtin = 1, deletable = 0
+    WHERE code IN ('teacher', 'student')
+  `).run();
 
   const insertPermission = db.prepare(`
     INSERT OR IGNORE INTO permissions (code, name, module, module_name, sort_order)

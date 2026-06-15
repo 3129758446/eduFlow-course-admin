@@ -9,6 +9,7 @@ import {
 } from '../permissions.js';
 
 const ALL_PERMISSIONS = Object.values(PERMISSIONS);
+const CUSTOM_ROLE_PREFIX = 'custom_';
 
 export function normalizePermissions(inputPermissions = []) {
   const result = new Set();
@@ -65,7 +66,7 @@ export function listPermissionGroups() {
 export function listRoles() {
   try {
     return db.prepare(`
-      SELECT code, name, description, editable
+      SELECT code, name, description, editable, builtin, deletable
       FROM roles
       ORDER BY
         CASE code
@@ -79,6 +80,9 @@ export function listRoles() {
     `).all().map((role) => ({
       ...role,
       editable: Boolean(role.editable) && !IMMUTABLE_ROLES.includes(role.code),
+      builtin: Boolean(role.builtin),
+      deletable: Boolean(role.deletable) && !IMMUTABLE_ROLES.includes(role.code),
+      userCount: countUsersByRole(role.code),
       permissions: getPermissionsByRole(role.code),
     }));
   } catch (error) {
@@ -89,9 +93,70 @@ export function listRoles() {
     return DEFAULT_ROLES.map((role) => ({
       ...role,
       editable: !IMMUTABLE_ROLES.includes(role.code),
+      builtin: true,
+      deletable: false,
+      userCount: 0,
       permissions: getPermissionsByRole(role.code),
     }));
   }
+}
+
+export function createRole({ name, description = '', permissions = [] } = {}) {
+  const normalizedName = normalizeRoleName(name);
+  const validation = validatePermissions(permissions);
+  if (!validation.valid) {
+    throw new Error(`权限码不存在: ${validation.invalid.join(', ')}`);
+  }
+
+  const roleCode = createUniqueRoleCode();
+  const create = db.transaction(() => {
+    db.prepare(`
+      INSERT INTO roles (code, name, description, editable, builtin, deletable, updated_at)
+      VALUES (?, ?, ?, 1, 0, 1, CURRENT_TIMESTAMP)
+    `).run(roleCode, normalizedName, String(description ?? '').trim());
+    replaceRolePermissions(roleCode, normalizePermissions(permissions));
+  });
+
+  create();
+  return getRoleByCode(roleCode);
+}
+
+export function updateRoleInfo(roleCode, { name, description } = {}) {
+  const role = requireExistingRole(roleCode);
+  const nextName = name === undefined ? role.name : normalizeRoleName(name);
+  const nextDescription =
+    description === undefined ? role.description : String(description ?? '').trim();
+
+  if (role.builtin && nextName !== role.name) {
+    throw new Error('系统默认角色名称不可修改');
+  }
+
+  db.prepare(`
+    UPDATE roles
+    SET name = ?, description = ?, updated_at = CURRENT_TIMESTAMP
+    WHERE code = ?
+  `).run(nextName, nextDescription, roleCode);
+
+  return getRoleByCode(roleCode);
+}
+
+export function deleteRole(roleCode) {
+  const role = requireExistingRole(roleCode);
+  if (!role.deletable || role.builtin || IMMUTABLE_ROLES.includes(roleCode)) {
+    throw new Error('系统默认角色不可删除');
+  }
+
+  const userCount = countUsersByRole(roleCode);
+  if (userCount > 0) {
+    throw new Error(`该角色下还有用户，请先转移 ${userCount} 个用户后再删除`);
+  }
+
+  db.prepare('DELETE FROM roles WHERE code = ?').run(roleCode);
+}
+
+export function canAssignRole(roleCode) {
+  if (IMMUTABLE_ROLES.includes(roleCode)) return false;
+  return Boolean(db.prepare('SELECT code FROM roles WHERE code = ?').get(roleCode));
 }
 
 export function updateRolePermissions(roleCode, permissions = []) {
@@ -114,6 +179,58 @@ export function updateRolePermissions(roleCode, permissions = []) {
 
   const normalized = normalizePermissions(permissions);
 
+  replaceRolePermissions(roleCode, normalized);
+  return getPermissionsByRole(roleCode);
+}
+
+function getRoleByCode(roleCode) {
+  return listRoles().find((role) => role.code === roleCode) ?? null;
+}
+
+function requireExistingRole(roleCode) {
+  const role = db.prepare(`
+    SELECT code, name, description, editable, builtin, deletable
+    FROM roles
+    WHERE code = ?
+  `).get(roleCode);
+  if (!role) {
+    throw new Error('角色不存在');
+  }
+  return {
+    ...role,
+    editable: Boolean(role.editable),
+    builtin: Boolean(role.builtin),
+    deletable: Boolean(role.deletable),
+  };
+}
+
+function normalizeRoleName(name) {
+  const normalized = String(name ?? '').trim();
+  if (!normalized) {
+    throw new Error('角色名称不能为空');
+  }
+  if (normalized.length > 30) {
+    throw new Error('角色名称不能超过 30 个字符');
+  }
+  return normalized;
+}
+
+function createUniqueRoleCode() {
+  for (let index = 0; index < 5; index += 1) {
+    const code = `${CUSTOM_ROLE_PREFIX}${Date.now().toString(36)}_${Math.random()
+      .toString(36)
+      .slice(2, 8)}`;
+    const exists = db.prepare('SELECT code FROM roles WHERE code = ?').get(code);
+    if (!exists) return code;
+  }
+  throw new Error('角色编码生成失败，请重试');
+}
+
+function countUsersByRole(roleCode) {
+  return db.prepare('SELECT COUNT(*) as count FROM users WHERE role = ?').get(roleCode).count;
+}
+
+function replaceRolePermissions(roleCode, permissions) {
   const replacePermissions = db.transaction(() => {
     db.prepare('DELETE FROM role_permissions WHERE role_code = ?').run(roleCode);
     const insert = db.prepare(`
@@ -121,11 +238,10 @@ export function updateRolePermissions(roleCode, permissions = []) {
       VALUES (?, ?)
     `);
 
-    for (const permission of normalized) {
+    for (const permission of permissions) {
       insert.run(roleCode, permission);
     }
   });
 
   replacePermissions();
-  return getPermissionsByRole(roleCode);
 }
