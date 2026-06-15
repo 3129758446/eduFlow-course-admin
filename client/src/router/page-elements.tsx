@@ -32,6 +32,9 @@ const SummaryPage = lazy(() =>
 const AccountsPage = lazy(() =>
   import("../pages/AccountsPage").then((module) => ({ default: module.AccountsPage })),
 );
+const PermissionsPage = lazy(() =>
+  import("../pages/PermissionsPage").then((module) => ({ default: module.PermissionsPage })),
+);
 const ForbiddenPage = lazy(() =>
   import("../pages/ForbiddenPage").then((module) => ({ default: module.ForbiddenPage })),
 );
@@ -153,5 +156,5 @@ export function AccountsRouteElement() {
 }
 
 export function PermissionsRouteElement() {
-  return renderLazyPage(<AccountsPage initialTab="roles" />);
+  return renderLazyPage(<PermissionsPage />);
 }
