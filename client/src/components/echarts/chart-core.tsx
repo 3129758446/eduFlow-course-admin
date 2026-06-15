@@ -11,6 +11,7 @@ import {
   PieChart as EchartsPieChart,
 } from "echarts/charts";
 import {
+  GraphicComponent,
   GridComponent,
   LegendComponent,
   TooltipComponent,
@@ -23,6 +24,7 @@ import type {
   PieSeriesOption,
 } from "echarts/charts";
 import type {
+  GraphicComponentOption,
   GridComponentOption,
   LegendComponentOption,
   TooltipComponentOption,
@@ -34,6 +36,7 @@ echarts.use([
   EchartsLineChart, // 折线图
   EchartsPieChart, // 饼图
   GridComponent, // 直角坐标系
+  GraphicComponent, // graphic 中心文字等自定义图形
   LegendComponent, // 图例
   TooltipComponent, // 提示框
   CanvasRenderer, // 画布渲染器
@@ -44,6 +47,7 @@ export type ChartOption = ComposeOption<
   | BarSeriesOption
   | LineSeriesOption
   | PieSeriesOption
+  | GraphicComponentOption
   | GridComponentOption
   | LegendComponentOption
   | TooltipComponentOption

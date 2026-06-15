@@ -1,7 +1,7 @@
 /*
 模块：固定权限字典
-定位：集中维护系统权限码、固定角色和固定角色权限
-说明：本项目已移除角色权限动态配置，运行时直接按 role 返回固定权限。
+定位：集中维护系统权限码、默认角色和权限依赖规则
+说明：运行时权限从数据库读取；这里保留白名单和初始化默认值，防止保存不存在的权限码。
 同步：前端 client/src/permissions.ts 保持同名镜像，用于菜单、路由和按钮控制。
 */
 export const PERMISSIONS = {
@@ -29,12 +29,9 @@ export const DEFAULT_ROLES = [
   { code: 'student', name: '学生', description: '可查看基础数据并维护自己的学习总结' },
 ];
 
-export const MANAGED_ROLES = ['teacher', 'student', 'custom'];
-
 export const IMMUTABLE_ROLES = ['admin'];
-export const EDITABLE_ROLES = ['teacher', 'student', 'custom'];
 
-// 固定权限策略：admin 自动拿到全部权限；teacher/student 只维护这里的白名单。
+// 默认权限只用于初始化和数据库异常兜底；管理员运行时始终由服务层返回全部权限。
 export const DEFAULT_ROLE_PERMISSIONS = {
   admin: Object.values(PERMISSIONS), // 管理员权限
   teacher: [
@@ -121,8 +118,3 @@ export const PERMISSION_GROUPS = [
     ],
   },
 ];
-
-// 根据角色获取权限码列表
-export function getPermissionsByRole(role) {
-  return DEFAULT_ROLE_PERMISSIONS[role] ?? [];
-}

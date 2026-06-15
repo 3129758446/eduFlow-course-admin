@@ -187,7 +187,7 @@ export function AppShell({
                 menu={{ items: userMenuItems }}
                 trigger={["click"]}
                 placement="bottomRight"
-                overlayClassName="user-dropdown-overlay"
+                classNames={{ root: "user-dropdown-overlay" }}
                 onOpenChange={(open) => {
                   if (open) {
                     setLogoutConfirmOpen(false);

@@ -1,6 +1,6 @@
 /*
 模块：系统管理路由
-定位：提供账号管理接口和固定角色列表
+定位：提供账号管理、角色管理和权限配置接口
 安全：所有接口都先 authenticateToken，再通过 requirePermission 做接口级鉴权
 */
 import Router from '@koa/router';
@@ -24,9 +24,7 @@ const router = new Router();
 const INITIAL_PASSWORD = '123456';
 const PUBLIC_USER_FIELDS = 'id, username, name, role, avatar, created_at';
 
-// 账号管理：仅返回前端展示需要的字段，避免 password 泄漏。
-// 仅返回教师和学生账号，不返回管理员账号。
-// 分页查询，默认每页 10 条。
+// 账号管理列表只返回前端展示字段；permissions 用于展示当前账号最终可用权限。
 router.get('/users', authenticateToken, requirePermission(PERMISSIONS.ACCOUNTS_VIEW), async (ctx) => {
   const users = db.prepare(`
     SELECT ${PUBLIC_USER_FIELDS}
@@ -40,7 +38,7 @@ router.get('/users', authenticateToken, requirePermission(PERMISSIONS.ACCOUNTS_V
   success(ctx, users);
 });
 
-// 修改账号角色：第一版只允许切换已有角色，不在这里创建新角色。
+// 修改账号角色只允许指向已存在的非管理员角色，角色创建由 /roles 接口负责。
 router.patch('/users/:id/role', authenticateToken, requirePermission(PERMISSIONS.ACCOUNTS_UPDATE_ROLE), async (ctx) => {
   const userId = Number(ctx.params.id);
   const role = String(ctx.request.body?.role ?? '').trim();
@@ -122,6 +120,7 @@ router.post('/roles', authenticateToken, requirePermission(PERMISSIONS.ACCOUNTS_
   }
 
   try {
+    // 新角色统一由服务层生成 custom_xxx code，路由层不接受客户端自定义 code。
     const role = createRole({
       name: ctx.request.body?.name,
       description: ctx.request.body?.description,
@@ -142,6 +141,7 @@ router.patch('/roles/:code', authenticateToken, requirePermission(PERMISSIONS.AC
   }
 
   try {
+    // 系统默认角色名称不可修改；服务层会再次兜底校验。
     const role = updateRoleInfo(String(ctx.params.code ?? '').trim(), {
       name: ctx.request.body?.name,
       description: ctx.request.body?.description,
@@ -158,6 +158,7 @@ router.delete('/roles/:code', authenticateToken, requirePermission(PERMISSIONS.A
   }
 
   try {
+    // 删除前会检查是否仍有用户绑定该角色，避免产生无权限来源的账号。
     deleteRole(String(ctx.params.code ?? '').trim());
     success(ctx, null, '角色删除成功');
   } catch (error) {

@@ -18,6 +18,7 @@ export function normalizePermissions(inputPermissions = []) {
     if (!ALL_PERMISSIONS.includes(permission)) continue;
     result.add(permission);
 
+    // 写操作必须补齐对应查看权限，避免出现“能编辑但进不了页面”的权限组合。
     const dependencies = PERMISSION_DEPENDENCIES[permission] ?? [];
     for (const dependency of dependencies) {
       result.add(dependency);
@@ -36,6 +37,7 @@ export function validatePermissions(inputPermissions = []) {
 }
 
 export function getPermissionsByRole(roleCode) {
+  // 管理员不依赖 role_permissions，防止数据库误删权限后系统无人可管。
   if (IMMUTABLE_ROLES.includes(roleCode)) {
     return ALL_PERMISSIONS;
   }
@@ -127,6 +129,7 @@ export function updateRoleInfo(roleCode, { name, description } = {}) {
   const nextDescription =
     description === undefined ? role.description : String(description ?? '').trim();
 
+  // 系统默认角色的 code/name 是业务约定，允许改名会让页面文案和默认数据难以追踪。
   if (role.builtin && nextName !== role.name) {
     throw new Error('系统默认角色名称不可修改');
   }
@@ -146,6 +149,7 @@ export function deleteRole(roleCode) {
     throw new Error('系统默认角色不可删除');
   }
 
+  // 删除角色前必须先转移用户，避免账号登录后找不到权限来源。
   const userCount = countUsersByRole(roleCode);
   if (userCount > 0) {
     throw new Error(`该角色下还有用户，请先转移 ${userCount} 个用户后再删除`);
@@ -217,6 +221,7 @@ function normalizeRoleName(name) {
 
 function createUniqueRoleCode() {
   for (let index = 0; index < 5; index += 1) {
+    // code 是内部稳定标识，界面统一显示 custom，避免暴露随机后缀。
     const code = `${CUSTOM_ROLE_PREFIX}${Date.now().toString(36)}_${Math.random()
       .toString(36)
       .slice(2, 8)}`;

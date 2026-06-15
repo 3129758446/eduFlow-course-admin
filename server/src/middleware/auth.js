@@ -31,10 +31,11 @@ export function authenticateToken(ctx, next) {
     ctx.body = { code: 401, msg: '令牌无效或已过期', data: null };
   }
 }
- // 权限中间件：校验用户是否有指定权限
+// 权限中间件：每次请求都按数据库中的当前角色权限判断，确保权限修改立即生效。
 export function requirePermission(permission) {
   return async (ctx, next) => {
     const userId = ctx.state.user?.id;
+    // JWT 只承载身份，真实 role 重新查库，避免旧 token 携带过期角色信息。
     const user = db.prepare('SELECT id, username, name, role FROM users WHERE id = ?').get(userId);
 
     if (!user) {
