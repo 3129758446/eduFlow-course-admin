@@ -10,7 +10,7 @@ import jwt from 'jsonwebtoken';
 import bcrypt from 'bcryptjs';
 import db from '../database/db.js';
 import { JWT_SECRET, authenticateToken } from '../middleware/auth.js';
-import { getPermissionsByRole } from '../permissions.js';
+import { getEffectivePermissions } from '../services/permission-service.js';
 import { success, fail } from '../utils/response.js';
 
 const router = new Router(); // 认证路由
@@ -42,7 +42,7 @@ router.post('/login', async (ctx) => {
 
   // 返回前剔除 password 字段，避免敏感信息泄漏到前端。
   const { password: _, ...userInfo } = user; 
-  userInfo.permissions = getPermissionsByRole(user.role);  // 添加权限字段
+  userInfo.permissions = getEffectivePermissions(user);  // 添加权限字段
   success(ctx, { token, user: userInfo });
 });
 
@@ -53,7 +53,7 @@ router.get('/me', authenticateToken, async (ctx) => {
   if (!user) {
     return fail(ctx, 404, '用户不存在');
   }
-  user.permissions = getPermissionsByRole(user.role);  // 添加权限字段
+  user.permissions = getEffectivePermissions(user);  // 添加权限字段
   success(ctx, user);
 });
 

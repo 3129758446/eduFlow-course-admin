@@ -4,7 +4,8 @@
 要点：统一使用 JWT_SECRET；失败时返回统一 JSON 错误
 */
 import jwt from 'jsonwebtoken';
-import { getPermissionsByRole } from '../permissions.js';
+import db from '../database/db.js';
+import { getEffectivePermissions } from '../services/permission-service.js';
 
 const JWT_SECRET = 'homework_secret_key_2024';
 
@@ -33,8 +34,16 @@ export function authenticateToken(ctx, next) {
  // 权限中间件：校验用户是否有指定权限
 export function requirePermission(permission) {
   return async (ctx, next) => {
-    const role = ctx.state.user?.role;
-    const permissions = getPermissionsByRole(role);
+    const userId = ctx.state.user?.id;
+    const user = db.prepare('SELECT id, username, name, role FROM users WHERE id = ?').get(userId);
+
+    if (!user) {
+      ctx.status = 401;
+      ctx.body = { code: 401, msg: '用户不存在', data: null };
+      return;
+    }
+
+    const permissions = getEffectivePermissions(user);
 
     if (!permissions.includes(permission)) {
       ctx.status = 403;

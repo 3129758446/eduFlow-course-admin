@@ -7,7 +7,13 @@ import Router from '@koa/router';
 import bcrypt from 'bcryptjs';
 import db from '../database/db.js';
 import { authenticateToken, requirePermission } from '../middleware/auth.js';
-import { DEFAULT_ROLES, MANAGED_ROLES, PERMISSIONS } from '../permissions.js';
+import { MANAGED_ROLES, PERMISSIONS } from '../permissions.js';
+import {
+  getEffectivePermissions,
+  listPermissionGroups,
+  listRoles,
+  updateRolePermissions,
+} from '../services/permission-service.js';
 import { success, fail } from '../utils/response.js';
 
 const router = new Router();
@@ -22,7 +28,10 @@ router.get('/users', authenticateToken, requirePermission(PERMISSIONS.ACCOUNTS_V
     SELECT ${PUBLIC_USER_FIELDS}
     FROM users
     ORDER BY id ASC
-  `).all();
+  `).all().map((user) => ({
+    ...user,
+    permissions: getEffectivePermissions(user),
+  }));
 
   success(ctx, users);
 });
@@ -44,7 +53,7 @@ router.patch('/users/:id/role', authenticateToken, requirePermission(PERMISSIONS
     return fail(ctx, 400, '管理员账号角色不可修改');
   }
   if (!MANAGED_ROLES.includes(role)) {
-    return fail(ctx, 400, '只能分配教师或学生角色');
+    return fail(ctx, 400, '只能分配教师、学生或自定义角色');
   }
 
   db.prepare('UPDATE users SET role = ? WHERE id = ?').run(role, userId);
@@ -60,7 +69,7 @@ router.post('/users', authenticateToken, requirePermission(PERMISSIONS.ACCOUNTS_
     return fail(ctx, 400, '账号、姓名和角色不能为空');
   }
   if (!MANAGED_ROLES.includes(role)) {
-    return fail(ctx, 400, '只能新增教师或学生账号');
+    return fail(ctx, 400, '只能新增教师、学生或自定义账号');
   }
 
   const existing = db.prepare('SELECT id FROM users WHERE username = ?').get(username);
@@ -92,21 +101,49 @@ router.delete('/users/:id', authenticateToken, requirePermission(PERMISSIONS.ACC
     return fail(ctx, 404, '用户不存在');
   }
   if (!MANAGED_ROLES.includes(targetUser.role)) {
-    return fail(ctx, 400, '只能删除教师或学生账号');
+    return fail(ctx, 400, '只能删除教师、学生或自定义账号');
   }
 
   db.prepare('DELETE FROM users WHERE id = ?').run(userId);
   success(ctx, null, '账号删除成功');
 });
 
-// 账号管理只需要固定角色列表来渲染下拉框，不再提供角色权限动态配置。
 router.get('/roles', authenticateToken, requirePermission(PERMISSIONS.ACCOUNTS_VIEW), async (ctx) => {
-  success(ctx, DEFAULT_ROLES);
+  success(ctx, listRoles());
+});
+
+router.get('/permissions', authenticateToken, requirePermission(PERMISSIONS.ACCOUNTS_VIEW), async (ctx) => {
+  success(ctx, listPermissionGroups());
+});
+
+router.patch('/roles/:code/permissions', authenticateToken, requirePermission(PERMISSIONS.ACCOUNTS_UPDATE_ROLE), async (ctx) => {
+  if (!isAdmin(ctx)) {
+    return fail(ctx, 403, '只有管理员可以修改角色权限');
+  }
+
+  const roleCode = String(ctx.params.code ?? '').trim();
+  const permissions = ctx.request.body?.permissions;
+
+  if (!Array.isArray(permissions)) {
+    return fail(ctx, 400, 'permissions 必须是数组');
+  }
+
+  try {
+    updateRolePermissions(roleCode, permissions);
+    success(ctx, listRoles().find((role) => role.code === roleCode));
+  } catch (error) {
+    fail(ctx, 400, error.message || '角色权限修改失败');
+  }
 });
 
 function findPublicUserById(id) {
   // 账号接口统一复用这份查询，保证返回字段始终不包含 password。
-  return db.prepare(`SELECT ${PUBLIC_USER_FIELDS} FROM users WHERE id = ?`).get(id);
+  const user = db.prepare(`SELECT ${PUBLIC_USER_FIELDS} FROM users WHERE id = ?`).get(id);
+  return user ? { ...user, permissions: getEffectivePermissions(user) } : null;
+}
+
+function isAdmin(ctx) {
+  return ctx.state.user?.role === 'admin';
 }
 
 export default router;

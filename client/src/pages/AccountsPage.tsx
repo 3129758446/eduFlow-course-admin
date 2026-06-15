@@ -1,17 +1,17 @@
 /*
 模块：账号管理页
-定位：admin 用于查看账号列表，新增/删除教师与学生账号，并切换教师/学生角色
-数据流：fetchAccounts + fetchRoles -> 表格展示 -> 新增/修改/删除 -> 刷新或局部更新
-学习要点：draftRoles 保存“页面临时选择值”，只有点击保存后才真正提交到后端。
+定位：admin 用于维护账号、切换账号角色，并配置教师/学生/自定义角色的动态权限
 */
 import {
   DeleteOutlined,
   PlusOutlined,
   ReloadOutlined,
   SaveOutlined,
+  SettingOutlined,
 } from "@ant-design/icons";
 import {
   Button,
+  Checkbox,
   Form,
   Input,
   Modal,
@@ -19,6 +19,7 @@ import {
   Select,
   Space,
   Table,
+  Tabs,
   Tag,
   message,
 } from "antd";
@@ -28,13 +29,15 @@ import {
   createAccount,
   deleteAccount,
   fetchAccounts,
+  fetchPermissionGroups,
   fetchRoles,
   updateAccountRole,
+  updateRolePermissions,
 } from "../api";
-import { Card } from "../components/ui";
 import { Permission } from "../components/Permission";
-import { PERMISSIONS } from "../permissions";
-import type { AccountUser, Role } from "../types";
+import { Card } from "../components/ui";
+import { PERMISSIONS, type PermissionCode } from "../permissions";
+import type { AccountUser, PermissionGroup, Role } from "../types";
 import { appErrorMessage, parseMaybeChinese } from "../utils/text";
 
 type AccountFormValue = {
@@ -43,19 +46,22 @@ type AccountFormValue = {
   role: string;
 };
 
-// 账号管理页只允许维护教师和学生，admin 是系统账号，前后端都会保护。
-const MANAGED_ROLES = ["teacher", "student"];
+const MANAGED_ROLES = ["teacher", "student", "custom"];
 
 export function AccountsPage() {
   const [form] = Form.useForm<AccountFormValue>();
   const [accounts, setAccounts] = useState<AccountUser[]>([]);
   const [roles, setRoles] = useState<Role[]>([]);
+  const [permissionGroups, setPermissionGroups] = useState<PermissionGroup[]>([]);
   const [draftRoles, setDraftRoles] = useState<Record<number, string>>({});
   const [loading, setLoading] = useState(true);
   const [savingId, setSavingId] = useState<number | null>(null);
   const [deletingId, setDeletingId] = useState<number | null>(null);
   const [createOpen, setCreateOpen] = useState(false);
   const [creating, setCreating] = useState(false);
+  const [permissionRole, setPermissionRole] = useState<Role | null>(null);
+  const [selectedPermissions, setSelectedPermissions] = useState<PermissionCode[]>([]);
+  const [permissionSaving, setPermissionSaving] = useState(false);
 
   const roleNameMap = useMemo(
     () => Object.fromEntries(roles.map((role) => [role.code, role.name])),
@@ -66,16 +72,17 @@ export function AccountsPage() {
     [roles],
   );
 
-  // 账号页需要账号列表和角色列表两份数据：前者渲染表格，后者渲染角色下拉框。
   const loadData = useCallback(async () => {
     setLoading(true);
     try {
-      const [accountList, roleList] = await Promise.all([
+      const [accountList, roleList, groups] = await Promise.all([
         fetchAccounts(),
         fetchRoles(),
+        fetchPermissionGroups(),
       ]);
       setAccounts(accountList);
       setRoles(roleList);
+      setPermissionGroups(groups);
       setDraftRoles(
         Object.fromEntries(accountList.map((account) => [account.id, account.role])),
       );
@@ -94,9 +101,7 @@ export function AccountsPage() {
 
   const handleSaveRole = useCallback(async (account: AccountUser) => {
     const nextRole = draftRoles[account.id];
-    if (!nextRole || nextRole === account.role) {
-      return;
-    }
+    if (!nextRole || nextRole === account.role) return;
 
     setSavingId(account.id);
     try {
@@ -116,7 +121,6 @@ export function AccountsPage() {
     try {
       const values = await form.validateFields();
       setCreating(true);
-      // 后端会统一写入初始密码 123456，前端不接收密码字段，减少误填和泄漏风险。
       const created = await createAccount(values);
       setAccounts((prev) => [...prev, created]);
       setDraftRoles((prev) => ({ ...prev, [created.id]: created.role }));
@@ -150,37 +154,86 @@ export function AccountsPage() {
     }
   }, []);
 
-  const columns = useMemo<ColumnsType<AccountUser>>(
+  const openPermissionModal = useCallback((role: Role) => {
+    setPermissionRole(role);
+    setSelectedPermissions(role.permissions);
+  }, []);
+
+  const handlePermissionCheck = useCallback((
+    group: PermissionGroup,
+    code: PermissionCode,
+    checked: boolean,
+  ) => {
+    setSelectedPermissions((prev) => {
+      const next = new Set(prev);
+      const viewPermission = group.permissions.find((permission) =>
+        permission.code.endsWith(":view"),
+      )?.code;
+
+      if (checked) {
+        next.add(code);
+        if (viewPermission && code !== viewPermission) {
+          next.add(viewPermission);
+        }
+      } else if (code === viewPermission) {
+        group.permissions.forEach((permission) => next.delete(permission.code));
+      } else {
+        next.delete(code);
+      }
+
+      return [...next];
+    });
+  }, []);
+
+  const handleSavePermissions = useCallback(async () => {
+    if (!permissionRole) return;
+
+    setPermissionSaving(true);
+    try {
+      const updated = await updateRolePermissions(permissionRole.code, selectedPermissions);
+      setRoles((prev) =>
+        prev.map((role) => (role.code === updated.code ? updated : role)),
+      );
+      setPermissionRole(null);
+      message.success("角色权限已更新");
+    } catch (error) {
+      message.error(appErrorMessage(error));
+    } finally {
+      setPermissionSaving(false);
+    }
+  }, [permissionRole, selectedPermissions]);
+
+  const accountColumns = useMemo<ColumnsType<AccountUser>>(
     () => [
       {
         title: "账号",
         dataIndex: "username",
         key: "username",
-        width: "20%",
+        width: "18%",
         render: (value) => <span className="list-title">{value}</span>,
       },
       {
         title: "姓名",
         dataIndex: "name",
         key: "name",
-        width: "20%",
+        width: "18%",
         render: (value) => parseMaybeChinese(value),
       },
       {
         title: "当前角色",
         dataIndex: "role",
         key: "role",
-        width: "20%",
+        width: "18%",
         render: (value) => (
           <Tag className="list-chip list-chip--blue">
-            {roleNameMap[value] ?? value}
+            {parseMaybeChinese(roleNameMap[value] ?? value)}
           </Tag>
         ),
       },
       {
         title: "修改角色",
         key: "roleEdit",
-        width: "25%",
+        width: "26%",
         render: (_, account) => (
           <Permission code={PERMISSIONS.ACCOUNTS_UPDATE_ROLE}>
             {account.role === "admin" ? (
@@ -191,10 +244,9 @@ export function AccountsPage() {
                 className="manage-form-select w-48!"
                 options={manageableRoles.map((role) => ({
                   value: role.code,
-                  label: role.name,
+                  label: parseMaybeChinese(role.name),
                 }))}
                 onChange={(value) =>
-                  // 只更新页面草稿值，不立即请求后端，避免误操作一选中就生效。
                   setDraftRoles((prev) => ({ ...prev, [account.id]: value }))
                 }
               />
@@ -205,7 +257,7 @@ export function AccountsPage() {
       {
         title: "操作",
         key: "actions",
-        width: "15%",
+        width: "20%",
         render: (_, account) => {
           const canManage = account.role !== "admin";
           const changed = (draftRoles[account.id] ?? account.role) !== account.role;
@@ -263,6 +315,61 @@ export function AccountsPage() {
     ],
   );
 
+  const roleColumns = useMemo<ColumnsType<Role>>(
+    () => [
+      {
+        title: "角色",
+        dataIndex: "name",
+        key: "name",
+        width: "20%",
+        render: (value, role) => (
+          <div>
+            <span className="list-title">{parseMaybeChinese(value)}</span>
+            <div className="list-subtitle mt-1">{role.code}</div>
+          </div>
+        ),
+      },
+      {
+        title: "说明",
+        dataIndex: "description",
+        key: "description",
+        width: "32%",
+        render: (value) => parseMaybeChinese(value || "-"),
+      },
+      {
+        title: "权限数量",
+        key: "permissionCount",
+        width: "18%",
+        render: (_, role) => (
+          <Tag className={role.editable ? "list-chip list-chip--blue" : "list-status list-status--success"}>
+            {role.editable ? `${role.permissions.length} 项` : "全部权限"}
+          </Tag>
+        ),
+      },
+      {
+        title: "操作",
+        key: "actions",
+        width: "30%",
+        render: (_, role) => (
+          <Space className="list-actions" size={0} wrap>
+            <Button
+              type="link"
+              icon={<SettingOutlined />}
+              disabled={!role.editable}
+              onClick={() => openPermissionModal(role)}
+            >
+              配置权限
+            </Button>
+            {!role.editable ? (
+              <span className="text-slate-400">管理员权限不可修改</span>
+            ) : null}
+          </Space>
+        ),
+      },
+    ],
+    [openPermissionModal],
+  );
+
   return (
     <div className="w-full space-y-6">
       <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
@@ -294,21 +401,49 @@ export function AccountsPage() {
       </div>
 
       <Card title="" className="manage-card">
-        <Table
-          rowKey="id"
-          dataSource={accounts}
-          columns={columns}
-          loading={loading}
-          pagination={false}
-          scroll={{ x: 760 }}
-          className="course-table-like manage-table"
-          locale={{ emptyText: "暂无账号数据" }}
+        <Tabs
+          items={[
+            {
+              key: "accounts",
+              label: "账号管理",
+              children: (
+                <div className="space-y-5">
+                  <Table
+                    rowKey="id"
+                    dataSource={accounts}
+                    columns={accountColumns}
+                    loading={loading}
+                    pagination={false}
+                    scroll={{ x: 820 }}
+                    className="course-table-like manage-table"
+                    locale={{ emptyText: "暂无账号数据" }}
+                  />
+                </div>
+              ),
+            },
+            {
+              key: "roles",
+              label: "角色权限",
+              children: (
+                <Table
+                  rowKey="code"
+                  dataSource={roles}
+                  columns={roleColumns}
+                  loading={loading}
+                  pagination={false}
+                  scroll={{ x: 760 }}
+                  className="course-table-like manage-table"
+                  locale={{ emptyText: "暂无角色数据" }}
+                />
+              ),
+            },
+          ]}
         />
       </Card>
 
       <Modal
         open={createOpen}
-        title="新增教师/学生账号"
+        title="新增教师/学生/自定义账号"
         onCancel={() => {
           if (!creating) {
             setCreateOpen(false);
@@ -352,7 +487,7 @@ export function AccountsPage() {
               className="manage-form-select w-full!"
               options={manageableRoles.map((role) => ({
                 value: role.code,
-                label: role.name,
+                label: parseMaybeChinese(role.name),
               }))}
             />
           </Form.Item>
@@ -360,6 +495,59 @@ export function AccountsPage() {
             新账号初始密码固定为 123456，用户登录后可在右上角修改密码。
           </div>
         </Form>
+      </Modal>
+
+      <Modal
+        open={Boolean(permissionRole)}
+        title={`配置权限 - ${parseMaybeChinese(permissionRole?.name ?? "")}`}
+        onCancel={() => {
+          if (!permissionSaving) {
+            setPermissionRole(null);
+          }
+        }}
+        onOk={handleSavePermissions}
+        confirmLoading={permissionSaving}
+        okText="保存"
+        cancelText="取消"
+        width={860}
+        centered
+        destroyOnHidden
+        className="manage-modal"
+      >
+        <div className="space-y-5 pt-2">
+          {permissionGroups.map((group) => (
+            <section
+              key={group.module}
+              className="rounded-4 border-3 border-dashed border-slate-200 p-4"
+            >
+              <h3 className="m-0 mb-3 text-xl font-extrabold text-slate-900">
+                {parseMaybeChinese(group.moduleName)}
+              </h3>
+              <div className="grid gap-3 md:grid-cols-2">
+                {group.permissions.map((permission) => (
+                  <Checkbox
+                    key={permission.code}
+                    checked={selectedPermissions.includes(permission.code)}
+                    onChange={(event) =>
+                      handlePermissionCheck(
+                        group,
+                        permission.code,
+                        event.target.checked,
+                      )
+                    }
+                  >
+                    <span className="font-semibold text-slate-700">
+                      {parseMaybeChinese(permission.name)}
+                    </span>
+                    <span className="ml-2 text-sm text-slate-400">
+                      {permission.code}
+                    </span>
+                  </Checkbox>
+                ))}
+              </div>
+            </section>
+          ))}
+        </div>
       </Modal>
     </div>
   );

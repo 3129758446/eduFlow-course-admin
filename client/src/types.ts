@@ -155,11 +155,24 @@ export type SummaryFormValue = {
 
 export type AccountUser = Pick<
   User,
-  'id' | 'username' | 'name' | 'role' | 'avatar' | 'created_at'
+  'id' | 'username' | 'name' | 'role' | 'avatar' | 'created_at' | 'permissions'
 >;
 
 export type Role = {
   code: string;
   name: string;
   description: string;
+  editable: boolean;
+  permissions: PermissionCode[];
+};
+
+export type PermissionOption = {
+  code: PermissionCode;
+  name: string;
+};
+
+export type PermissionGroup = {
+  module: string;
+  moduleName: string;
+  permissions: PermissionOption[];
 };

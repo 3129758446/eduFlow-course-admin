@@ -17,6 +17,7 @@ import type {
   DashboardData,
   LoginResponse,
   AccountUser,
+  PermissionGroup,
   Role,
   StudentDetail,
   StudentFormValue,
@@ -243,6 +244,20 @@ export function fetchAccounts() {
 // 获取角色列表
 export function fetchRoles() {
   return request<Role[]>({ url: '/system/roles' });
+}
+
+// 获取权限分组
+export function fetchPermissionGroups() {
+  return request<PermissionGroup[]>({ url: '/system/permissions' });
+}
+
+// 更新角色权限
+export function updateRolePermissions(roleCode: string, permissions: string[]) {
+  return request<Role>({
+    url: `/system/roles/${roleCode}/permissions`,
+    method: 'PATCH',
+    data: { permissions },
+  });
 }
 
 // 更新账号角色

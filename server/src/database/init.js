@@ -5,6 +5,7 @@
 */
 import db from './db.js';
 import bcrypt from 'bcryptjs';
+import { DEFAULT_ROLE_PERMISSIONS, PERMISSION_GROUPS } from '../permissions.js';
 
 // 初始化数据库
 export function initDatabase() {
@@ -66,10 +67,149 @@ export function initDatabase() {
       FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
     );
 
+    CREATE TABLE IF NOT EXISTS roles (
+      code TEXT PRIMARY KEY,
+      name TEXT NOT NULL,
+      description TEXT DEFAULT '',
+      editable INTEGER NOT NULL DEFAULT 1,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    );
+
+    CREATE TABLE IF NOT EXISTS permissions (
+      code TEXT PRIMARY KEY,
+      name TEXT NOT NULL,
+      module TEXT NOT NULL,
+      module_name TEXT NOT NULL,
+      sort_order INTEGER DEFAULT 0
+    );
+
+    CREATE TABLE IF NOT EXISTS role_permissions (
+      role_code TEXT NOT NULL,
+      permission_code TEXT NOT NULL,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      PRIMARY KEY (role_code, permission_code),
+      FOREIGN KEY (role_code) REFERENCES roles(code) ON DELETE CASCADE,
+      FOREIGN KEY (permission_code) REFERENCES permissions(code) ON DELETE CASCADE
+    );
+
   `);
 
+  migratePermissionSchema();
+  seedPermissionData();
   seedData(); // 初始化业务数据
   refreshLearningRecords(); // 刷新学习记录
+}
+
+function migratePermissionSchema() {
+  ensureColumn('roles', 'editable', 'INTEGER NOT NULL DEFAULT 1');
+  db.exec(`
+    CREATE UNIQUE INDEX IF NOT EXISTS idx_roles_code ON roles(code);
+    CREATE UNIQUE INDEX IF NOT EXISTS idx_permissions_code ON permissions(code);
+  `);
+  migrateRolePermissionsTable();
+}
+
+function ensureColumn(tableName, columnName, definition) {
+  const columns = db.prepare(`PRAGMA table_info(${tableName})`).all();
+  if (columns.some((column) => column.name === columnName)) return;
+
+  db.prepare(`ALTER TABLE ${tableName} ADD COLUMN ${columnName} ${definition}`).run();
+}
+
+function migrateRolePermissionsTable() {
+  const columns = db.prepare('PRAGMA table_info(role_permissions)').all();
+  const hasRoleCode = columns.some((column) => column.name === 'role_code');
+  const hasPermissionCode = columns.some((column) => column.name === 'permission_code');
+
+  if (hasRoleCode && hasPermissionCode) return;
+
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS role_permissions_new (
+      role_code TEXT NOT NULL,
+      permission_code TEXT NOT NULL,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      PRIMARY KEY (role_code, permission_code),
+      FOREIGN KEY (role_code) REFERENCES roles(code) ON DELETE CASCADE,
+      FOREIGN KEY (permission_code) REFERENCES permissions(code) ON DELETE CASCADE
+    );
+  `);
+
+  const hasLegacyColumns =
+    columns.some((column) => column.name === 'role_id') &&
+    columns.some((column) => column.name === 'permission_id');
+
+  if (hasLegacyColumns) {
+    db.exec(`
+      INSERT OR IGNORE INTO role_permissions_new (role_code, permission_code)
+      SELECT roles.code, permissions.code
+      FROM role_permissions
+      JOIN roles ON roles.id = role_permissions.role_id
+      JOIN permissions ON permissions.id = role_permissions.permission_id
+      WHERE roles.code IS NOT NULL AND permissions.code IS NOT NULL;
+    `);
+  }
+
+  db.exec(`
+    DROP TABLE role_permissions;
+    ALTER TABLE role_permissions_new RENAME TO role_permissions;
+  `);
+}
+
+function seedPermissionData() {
+  const roles = [
+    { code: 'admin', name: '管理员', description: '拥有全部权限', editable: 0 },
+    { code: 'teacher', name: '教师', description: '可维护课程、学生和学习总结', editable: 1 },
+    { code: 'student', name: '学生', description: '可查看基础数据并维护学习总结', editable: 1 },
+    { code: 'custom', name: '自定义', description: '可由管理员配置权限的自定义角色', editable: 1 },
+  ];
+  const insertRole = db.prepare(`
+    INSERT OR IGNORE INTO roles (code, name, description, editable)
+    VALUES (@code, @name, @description, @editable)
+  `);
+
+  for (const role of roles) {
+    insertRole.run(role);
+  }
+  db.prepare('UPDATE roles SET editable = 0 WHERE code = ?').run('admin');
+
+  const insertPermission = db.prepare(`
+    INSERT OR IGNORE INTO permissions (code, name, module, module_name, sort_order)
+    VALUES (@code, @name, @module, @module_name, @sort_order)
+  `);
+  let sortOrder = 1;
+
+  for (const group of PERMISSION_GROUPS) {
+    for (const permission of group.permissions) {
+      insertPermission.run({
+        code: permission.code,
+        name: permission.name,
+        module: group.module,
+        module_name: group.moduleName,
+        sort_order: sortOrder,
+      });
+      sortOrder += 1;
+    }
+  }
+
+  seedDefaultRolePermissions('teacher', DEFAULT_ROLE_PERMISSIONS.teacher);
+  seedDefaultRolePermissions('student', DEFAULT_ROLE_PERMISSIONS.student);
+}
+
+function seedDefaultRolePermissions(roleCode, permissions) {
+  const existingCount = db.prepare(`
+    SELECT COUNT(*) as count FROM role_permissions WHERE role_code = ?
+  `).get(roleCode).count;
+
+  if (existingCount > 0) return;
+
+  const insertPermission = db.prepare(`
+    INSERT OR IGNORE INTO role_permissions (role_code, permission_code)
+    VALUES (?, ?)
+  `);
+
+  for (const permission of permissions) {
+    insertPermission.run(roleCode, permission);
+  }
 }
 
 // 刷新学习记录

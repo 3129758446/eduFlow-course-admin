@@ -105,7 +105,7 @@ export function AppShell({
   return (
     <Layout className="min-h-screen bg-[repeating-linear-gradient(135deg,#ffffff_0,#ffffff_34px,#f6f3ee_34px,#f6f3ee_36px)]">
       <Sider
-        width="clamp(260px, 22vw, 360px)"
+        width="clamp(260px, 22vw, 300px)"
         breakpoint="lg"
         collapsible
         collapsed={siderCollapsed}
@@ -144,7 +144,7 @@ export function AppShell({
               label: item.label,
               onClick: () => onNavigate(item.key),
             }))}
-            className="app-nav-menu mt-6 border-0 bg-transparent text-lg [&_.ant-menu-item]:mb-4 [&_.ant-menu-item]:h-26 [&_.ant-menu-item]:rounded-5 [&_.ant-menu-item]:px-9 [&_.ant-menu-item]:leading-26 [&_.ant-menu-item-selected]:border-4 [&_.ant-menu-item-selected]:border-sky-500 [&_.ant-menu-item-selected]:bg-[#d9e9ff] [&_.ant-menu-item-icon]:mr-4 [&_.ant-menu-item-icon]:text-4xl [&_.ant-menu-title-content]:text-3xl [&_.ant-menu-title-content]:font-extrabold"
+            className="app-nav-menu mt-6 border-0 bg-transparent text-lg [&_.ant-menu-item]:mb-5 [&_.ant-menu-item]:h-30 [&_.ant-menu-item]:rounded-5 [&_.ant-menu-item]:px-10 [&_.ant-menu-item]:leading-30 [&_.ant-menu-item-selected]:border-4 [&_.ant-menu-item-selected]:border-sky-500 [&_.ant-menu-item-selected]:bg-[#d9e9ff] [&_.ant-menu-item-icon]:mr-5 [&_.ant-menu-item-icon]:text-4xl [&_.ant-menu-title-content]:text-3xl [&_.ant-menu-title-content]:font-extrabold"
           />
         </div>
       </Sider>
