@@ -71,27 +71,30 @@ router.use('/api/upload', uploadRoutes.routes());
 app.use(router.routes());
 app.use(router.allowedMethods());
 
-app.use(async (ctx, next) => {
-  // 这里只处理前端静态资源和 SPA 路由回退，API 请求继续走业务路由。
-  if (ctx.method !== 'GET' || ctx.path.startsWith('/api')) {
-    await next();
-    return;
-  }
+// Docker 环境下由 Nginx 承担静态文件服务，本地开发时保持原有行为。
+if (process.env.SERVE_STATIC !== 'false') {
+  app.use(async (ctx, next) => {
+    // 这里只处理前端静态资源和 SPA 路由回退，API 请求继续走业务路由。
+    if (ctx.method !== 'GET' || ctx.path.startsWith('/api')) {
+      await next();
+      return;
+    }
 
-  const requestedPath = ctx.path === '/' ? 'index.html' : ctx.path.slice(1);
-  const filePath = join(DIST_ROOT, requestedPath);
-  // 如果请求的静态资源不存在，则回退到 index.html，让前端路由自己接管。
-  const targetPath = existsSync(filePath) ? filePath : join(DIST_ROOT, 'index.html');
-  const ext = extname(targetPath).toLowerCase();
+    const requestedPath = ctx.path === '/' ? 'index.html' : ctx.path.slice(1);
+    const filePath = join(DIST_ROOT, requestedPath);
+    // 如果请求的静态资源不存在，则回退到 index.html，让前端路由自己接管。
+    const targetPath = existsSync(filePath) ? filePath : join(DIST_ROOT, 'index.html');
+    const ext = extname(targetPath).toLowerCase();
 
-  if (!existsSync(targetPath)) {
-    await next();
-    return;
-  }
+    if (!existsSync(targetPath)) {
+      await next();
+      return;
+    }
 
-  ctx.type = MIME_TYPES[ext] || 'application/octet-stream';
-  ctx.body = createReadStream(targetPath);
-});
+    ctx.type = MIME_TYPES[ext] || 'application/octet-stream';
+    ctx.body = createReadStream(targetPath);
+  });
+}
 
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {

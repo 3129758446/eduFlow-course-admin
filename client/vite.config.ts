@@ -12,7 +12,7 @@ export default defineConfig({
         codeSplitting: {
           groups: [
             { name: 'vendor-react', test: /node_modules[\\/](react|react-dom|react-router-dom|zustand)[\\/]/ },
-            { name: 'vendor-antd-core', test: /node_modules[\\/]antd[\\/]/, maxSize: 350 * 1024 },
+            { name: 'vendor-antd-core', test: /node_modules[\\/]antd[\\/]/ },
             { name: 'vendor-antd-icons', test: /node_modules[\\/]@ant-design[\\/]/ },
             { name: 'vendor-rc', test: /node_modules[\\/](rc-|@rc-component)[\\/]/ },
             { name: 'vendor-echarts-core', test: /node_modules[\\/]echarts[\\/](core|charts|components|renderers)[\\/]/ },
