@@ -19,8 +19,11 @@ EduFlow 在线课程后台管理系统。React 19 + TypeScript + Ant Design 6 SP
 | `cd client && npm run preview` | 预览生产构建 (port 4173) |
 | `cd server && npm start` | 后端生产启动 |
 | `cd server && node --test` | 运行后端测试 |
+| `docker compose up --build -d` | Docker 容器化部署（构建并启动） |
+| `docker compose logs -f` | 查看容器日志 |
+| `docker compose down` | 停止并移除容器 |
 
-前端开发需要同时运行 client 和 server 两个 dev 命令。
+前端开发需要同时运行 client 和 server 两个 dev 命令。Docker 部署仅用于部署验证，日常开发用 `npm run dev`。
 
 ## 目录结构
 
@@ -78,7 +81,7 @@ eduFlow-course-admin/
   server/                 # Koa 后端（独立的 package.json）
     src/
       index.js            # Koa 入口（中间件、路由、静态资源托管）
-      permissions.js      # 权限码定义 + 角色权限配置（权限的权威来源）
+      permissions.js      # 权限码字典 + 默认角色/权限分组（后端权限权威来源）
       database/           # SQLite 连接 + 初始化/建表
       middleware/         # JWT 鉴权中间件 + requirePermission
       routes/             # auth / courses / students / dashboard / summary / system / upload / static
@@ -135,22 +138,58 @@ Vite 开发代理（`client/vite.config.ts`）：`/api` → `http://localhost:30
 
 ## RBAC 权限系统
 
-三层权限控制，以 `server/src/permissions.js` 为权威来源：
+项目采用前后端联动的动态 RBAC 权限体系，详细设计见根目录 `权限管理设计文档.md`。核心链路：
+
+```txt
+权限码字典
+  -> roles / permissions / role_permissions 维护角色权限映射
+  -> 登录或 /auth/me 动态下发 user.permissions
+  -> 前端菜单、路由、按钮按权限控制
+  -> 后端接口通过 JWT + requirePermission 再次鉴权
+```
+
+后端 `server/src/permissions.js` 维护权限码、默认角色、权限分组和权限依赖；`server/src/services/permission-service.js` 负责从数据库读取角色权限、创建自定义角色、更新角色权限、补齐权限依赖、保护 admin 不可变。前端 `client/src/permissions.ts` 是同名权限码镜像，用于类型提示和 UI 控制，最终安全边界仍以后端接口鉴权为准。
+
+四层权限控制：
 
 | 层级 | 位置 | 机制 |
 |------|------|------|
-| 路由 | `RequirePermission.tsx` | 无权限跳转 `/403`，传递 missing code |
-| 组件 | `Permission.tsx` | `code`（单权限）或 `any`（任一满足），可选 `fallback` |
-| 菜单 | `nav-config.tsx` | `navItems` 每项声明所需权限，无权限不显示 |
+| 菜单 | `nav-config.tsx` + `AppShell.tsx` | `navItems` 每项声明所需权限，无权限不显示 |
+| 路由 | `RequirePermission.tsx` | 无权限跳转 `/403`，传递 `from` 和 `requiredPermission` |
+| 按钮/组件 | `Permission.tsx` | `code`（单权限）或 `any`（任一满足），可选 `fallback` |
+| 接口 | `authenticateToken` + `requirePermission` | 先校验 JWT，再按数据库中的最新角色计算权限并返回 403 |
 
-内置角色：`admin`（全部权限，不可编辑）、`teacher`、`student`。自定义角色通过 PermissionsPage 管理。
+内置角色：`admin`（始终拥有全部权限，不依赖 `role_permissions`，不可编辑/删除）、`teacher`、`student`。自定义角色通过 `PermissionsPage` 管理，支持创建、编辑说明、可视化勾选权限、删除未绑定用户的角色。
+
+权限码采用 `module:action` 格式，例如 `courses:view`、`students:delete`、`accounts:updateRole`。写操作权限会自动补齐对应查看权限，例如保存 `courses:update` 时会补齐 `courses:view`，避免出现“能编辑但进不了页面”的权限组合。
 
 ## 鉴权流程
 
-1. **启动初始化**：`provider.tsx` 挂载时调用 `initializeAuth()`，从 localStorage 读取 token，调用 `GET /auth/me` 验证。无 token 或过期则清除并显示登录页。用 `initializePromise` 单例防止重复初始化。
-2. **登录**：`LoginPage` → `POST /auth/login` → localStorage 持久化 token + user → store 更新
-3. **登出**：`clearAuth()` + `resetAllStores()`（清空所有 Zustand store）
-4. **401 响应**：Axios 响应拦截器自动清除鉴权
+1. **启动初始化**：`provider.tsx` 挂载时调用 `initializeAuth()`，从 localStorage 读取 token，调用 `GET /auth/me` 验证并重新拉取用户最新权限。无 token 或过期则清除并显示登录页。用 `initializePromise` 单例防止重复初始化。
+2. **登录**：`LoginPage` → `POST /auth/login` → 后端校验密码并签发 JWT → `getEffectivePermissions(user)` 计算权限集合 → localStorage 持久化 token + user → store 更新。
+3. **前端消费权限**：`auth-store` 提供 `hasPermission/hasAnyPermission`；菜单、路由守卫和按钮组件统一读取 `user.permissions`。
+4. **接口鉴权**：所有核心业务接口使用 `authenticateToken` 校验登录态，再使用 `requirePermission(permission)` 校验接口权限。权限中间件会按 `ctx.state.user.id` 重新查库获取当前角色，避免旧 token 携带过期角色导致越权。
+5. **登出**：`clearAuth()` + `resetAllStores()`（清空所有 Zustand store）。
+6. **401 响应**：Axios 响应拦截器自动清除鉴权。
+
+## 权限管理接口
+
+`server/src/routes/system.js` 提供账号、角色和权限字典接口：
+
+| 接口 | 权限 | 说明 |
+|------|------|------|
+| `GET /api/system/users` | `accounts:view` | 查看账号列表，并返回账号有效权限 |
+| `POST /api/system/users` | `accounts:updateRole` | 新增普通账号，初始密码 `123456` |
+| `PATCH /api/system/users/:id/role` | `accounts:updateRole` | 修改普通账号角色 |
+| `DELETE /api/system/users/:id` | `accounts:updateRole` | 删除普通账号 |
+| `GET /api/system/roles` | `accounts:view` | 获取角色列表 |
+| `POST /api/system/roles` | `accounts:updateRole` + admin | 创建自定义角色 |
+| `PATCH /api/system/roles/:code` | `accounts:updateRole` + admin | 修改角色名称/说明 |
+| `DELETE /api/system/roles/:code` | `accounts:updateRole` + admin | 删除未绑定用户的自定义角色 |
+| `GET /api/system/permissions` | `accounts:view` | 获取按模块分组的权限字典 |
+| `PATCH /api/system/roles/:code/permissions` | `accounts:updateRole` + admin | 更新角色权限 |
+
+`+ admin` 表示除了权限码校验外，还要求当前登录用户角色必须是 `admin`。
 
 ## ECharts 集成
 
@@ -164,8 +203,11 @@ Vite 开发代理（`client/vite.config.ts`）：`/api` → `http://localhost:30
 
 - 权限码为 `module:action` 格式（如 `courses:view`、`students:delete`）
 - 前端 `PermissionCode` 类型从 `PERMISSIONS` 常量对象自动推导
+- 权限数据落库在 `roles`、`permissions`、`role_permissions`，角色权限变更后通过 `/auth/me` 或重新登录刷新到前端
+- 新增写操作权限时，需要在 `PERMISSION_DEPENDENCIES` 中配置对应 `:view` 依赖
+- 后端接口权限必须通过 `requirePermission()` 兜底，前端 `Permission` 组件只负责展示体验
 - 数据库文件位于 `server/data/homework.db`，SQLite + WAL 模式
-- 新建教师/学生账号初始密码统一为 `123456`
+- 新建普通账号初始密码统一为 `123456`，不能创建或分配 `admin` 角色
 - 课程状态切换用 `PATCH /api/courses/:id/status`，不经过完整 update
 
 <!-- superpowers-zh:begin (do not edit between these markers) -->
