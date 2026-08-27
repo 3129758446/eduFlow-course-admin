@@ -10,6 +10,10 @@
 .claude/
 
 dist/
+server-nest/node_modules/
+server-nest/dist/
+server-nest/test/.tmp/
+server-nest/.env
 
 *.db
 *.sqlite

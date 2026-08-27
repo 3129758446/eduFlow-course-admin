@@ -1,0 +1,8 @@
+node_modules
+dist
+test
+coverage
+.tmp
+npm-debug.log
+Dockerfile
+docker-compose.nest.yml
