@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## 项目概述
 
-EduFlow 在线课程后台管理系统。React 19 + TypeScript + Ant Design 6 SPA 前端，Koa 2 + SQLite REST API 后端。功能包括数据看板、课程/学生 CRUD、Markdown 学习笔记、账号管理和 RBAC 权限控制。
+EduFlow 在线课程后台管理系统。React 19 + TypeScript + Ant Design 6 SPA 前端，默认后端为 NestJS + MySQL REST API。功能包括数据看板、课程/学生 CRUD、Markdown 学习笔记、账号管理和 RBAC 权限控制。`server` 目录保留 Koa 2 + SQLite 旧版后端，主要用于功能对照和回退。
 
 ## 开发命令
 
@@ -13,17 +13,19 @@ EduFlow 在线课程后台管理系统。React 19 + TypeScript + Ant Design 6 SP
 | 命令 | 说明 |
 |------|------|
 | `cd client && npm run dev` | 启动前端开发服务器 (port 5173, API 代理到 3000) |
-| `cd server && npm run dev` | 启动后端开发服务器 (port 3000, 文件监听) |
+| `cd server-nest && npm run dev` | 启动默认 NestJS 后端开发服务器 (port 3000, 连接本机 MySQL) |
 | `cd client && npm run build` | 前端生产构建 (tsc 类型检查 + vite build) |
 | `cd client && npm run lint` | 前端 ESLint 检查 |
 | `cd client && npm run preview` | 预览生产构建 (port 4173) |
-| `cd server && npm start` | 后端生产启动 |
-| `cd server && node --test` | 运行后端测试 |
-| `docker compose up --build -d` | Docker 容器化部署（构建并启动） |
-| `docker compose logs -f` | 查看容器日志 |
+| `cd server-nest && npm run build` | NestJS 后端生产构建 |
+| `cd server-nest && npm start` | NestJS 后端生产启动 |
+| `cd server-nest && npm test` | 运行 NestJS 后端测试 |
+| `cd server && npm run dev` | 启动旧版 Koa 后端 |
+| `docker compose up -d --build` | Docker 容器化部署（构建并启动前端与 NestJS 后端） |
+| `docker compose logs -f server` | 查看默认后端容器日志 |
 | `docker compose down` | 停止并移除容器 |
 
-前端开发需要同时运行 client 和 server 两个 dev 命令。Docker 部署仅用于部署验证，日常开发用 `npm run dev`。
+前端开发需要同时运行 `client` 和 `server-nest` 两个 dev 命令。Docker 部署默认使用 NestJS 后端镜像 `eduflow-course-admin-server-nest`，前端 Nginx 通过服务名 `http://server:3000` 代理 API。
 
 ## 目录结构
 
@@ -37,7 +39,7 @@ eduFlow-course-admin/
       constants.ts        # 应用常量
       main.tsx            # 挂载到 #root
       markdown.tsx        # Markdown 渲染 + 代码高亮组件
-      permissions.ts      # 前端权限码常量（与 server 镜像）
+      permissions.ts      # 前端权限码常量（与后端保持同名镜像）
       types.ts            # TypeScript 类型定义（实体、API 信封、查询/表单）
       components/
         echarts/          # ECharts 封装（核心为 chart-core.tsx 生命周期管理）
@@ -88,6 +90,18 @@ eduFlow-course-admin/
       services/           # 权限服务层
       utils/
     data/                 # SQLite 数据库文件 + 上传文件
+  server-nest/            # 默认 NestJS 后端（独立的 package.json）
+    src/
+      auth/               # 登录、用户信息和密码接口
+      courses/            # 课程管理接口
+      database/           # MySQL 连接池、建库建表和初始化数据
+      dashboard/          # 数据看板接口
+      students/           # 学生管理接口
+      summary/            # 学习笔记接口
+      system/             # 账号、角色和权限接口
+      upload/             # 图片上传接口
+      static/             # 静态资源访问接口
+    data/                 # 上传文件与静态资源
 ```
 
 ## 路由结构
@@ -148,7 +162,7 @@ Vite 开发代理（`client/vite.config.ts`）：`/api` → `http://localhost:30
   -> 后端接口通过 JWT + requirePermission 再次鉴权
 ```
 
-后端 `server/src/permissions.js` 维护权限码、默认角色、权限分组和权限依赖；`server/src/services/permission-service.js` 负责从数据库读取角色权限、创建自定义角色、更新角色权限、补齐权限依赖、保护 admin 不可变。前端 `client/src/permissions.ts` 是同名权限码镜像，用于类型提示和 UI 控制，最终安全边界仍以后端接口鉴权为准。
+后端 `server-nest/src/permissions/permissions.constants.ts` 维护权限码、默认角色、权限分组和权限依赖；`server-nest/src/permissions/permission.service.ts` 负责从数据库读取角色权限、创建自定义角色、更新角色权限、补齐权限依赖、保护 admin 不可变。前端 `client/src/permissions.ts` 是同名权限码镜像，用于类型提示和 UI 控制，最终安全边界仍以后端接口鉴权为准。
 
 四层权限控制：
 
@@ -174,7 +188,7 @@ Vite 开发代理（`client/vite.config.ts`）：`/api` → `http://localhost:30
 
 ## 权限管理接口
 
-`server/src/routes/system.js` 提供账号、角色和权限字典接口：
+`server-nest/src/system/system.controller.ts` 提供账号、角色和权限字典接口：
 
 | 接口 | 权限 | 说明 |
 |------|------|------|
@@ -206,9 +220,21 @@ Vite 开发代理（`client/vite.config.ts`）：`/api` → `http://localhost:30
 - 权限数据落库在 `roles`、`permissions`、`role_permissions`，角色权限变更后通过 `/auth/me` 或重新登录刷新到前端
 - 新增写操作权限时，需要在 `PERMISSION_DEPENDENCIES` 中配置对应 `:view` 依赖
 - 后端接口权限必须通过 `requirePermission()` 兜底，前端 `Permission` 组件只负责展示体验
-- 数据库文件位于 `server/data/homework.db`，SQLite + WAL 模式
+- 默认业务数据库为本机 MySQL 3306 的 `eduflow_course_admin`，Docker 容器通过 `host.docker.internal:3306` 访问宿主机 MySQL
+- `server-nest/data` 只存放上传文件和静态资源；MySQL 数据不在项目 volume 中
+- 旧版 Koa 数据库文件位于 `server/data/homework.db`，SQLite + WAL 模式
 - 新建普通账号初始密码统一为 `123456`，不能创建或分配 `admin` 角色
 - 课程状态切换用 `PATCH /api/courses/:id/status`，不经过完整 update
+
+## 后端切换约定
+
+根目录 `docker-compose.yml` 默认构建 `./server-nest`，镜像名为 `eduflow-course-admin-server-nest`。为了保持前端 Nginx 代理稳定，compose 服务名仍然叫 `server`。
+
+如需临时切回旧版 Koa 后端：
+
+1. 将 `docker-compose.yml` 中 `server.build.context` 改为 `./server`。
+2. 删除 NestJS 专用的 `env_file`、`MYSQL_HOST` 和 `DATA_ROOT` 配置。
+3. 重新执行 `docker compose up -d --build`。
 
 <!-- superpowers-zh:begin (do not edit between these markers) -->
 # Superpowers-ZH 中文增强版

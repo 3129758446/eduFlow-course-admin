@@ -1,6 +1,6 @@
 # EduFlow 在线课程管理平台
 
-EduFlow 是一个基于 React + TypeScript 的在线课程后台管理系统，覆盖登录鉴权、课程管理、学生管理、Markdown 学习笔记、账号管理、数据看板和权限控制等后台核心能力。后端基于 Koa + SQLite 提供 REST API、JWT 鉴权和静态资源访问。
+EduFlow 是一个基于 React + TypeScript 的在线课程后台管理系统，覆盖登录鉴权、课程管理、学生管理、Markdown 学习笔记、账号管理、数据看板和权限控制等后台核心能力。当前默认后端为 NestJS + MySQL，提供 REST API、JWT 鉴权和静态资源访问；`server` 目录保留 Koa + SQLite 旧版实现，便于对照和回退。
 
 ## 预览图
 
@@ -46,16 +46,21 @@ EduFlow 是一个基于 React + TypeScript 的在线课程后台管理系统，�
 
 **后端**
 
+- NestJS
+- mysql2
+- jsonwebtoken
+- bcryptjs
+
+**旧版后端**
+
 - Koa
 - @koa/router
 - better-sqlite3
-- jsonwebtoken
-- bcryptjs
 
 ## 核心功能
 
 - 登录鉴权：JWT 登录、登录态持久化、刷新恢复、401 失效清理。
-- 权限控制：基于固定角色权限码实现菜单、路由、按钮和接口四层权限控制。
+- 权限控制：基于动态 RBAC 实现菜单、路由、按钮和接口四层权限控制。
 - 数据看板：展示课程数量、学生数量、发布率、活跃率、选课排行、学习活跃趋势等统计图表。
 - 课程管理：支持课程列表、搜索筛选、分页排序、新增、编辑、删除、发布/下架。
 - 学生管理：支持学生列表、班级/状态筛选、新增、编辑、删除、多课程选择和学号唯一性校验。
@@ -73,7 +78,7 @@ EduFlow 是一个基于 React + TypeScript 的在线课程后台管理系统，�
 
 ### 2. RBAC 权限控制
 
-项目采用固定角色权限模型，内置 `admin`、`teacher`、`student` 三类角色。后端根据角色返回权限码，前端根据权限码控制：
+项目采用数据库动态 RBAC，内置 `admin`、`teacher`、`student` 三类角色。后端根据角色和权限表返回权限码，前端根据权限码控制：
 
 - 菜单是否展示
 - 路由是否允许访问
@@ -137,6 +142,18 @@ eduFlow-course-admin
 │  │  ├─ index.js                # Koa 服务入口
 │  │  └─ permissions.js          # 后端权限码和角色权限
 │  └─ data                       # SQLite 数据与静态资源
+├─ server-nest
+│  ├─ src
+│  │  ├─ auth                    # 登录、用户信息和密码接口
+│  │  ├─ courses                 # 课程管理接口
+│  │  ├─ database                # MySQL 连接池、建库建表和初始化数据
+│  │  ├─ dashboard               # 数据看板接口
+│  │  ├─ students                # 学生管理接口
+│  │  ├─ summary                 # 学习笔记接口
+│  │  ├─ system                  # 账号、角色和权限接口
+│  │  ├─ upload                  # 图片上传接口
+│  │  └─ static                  # 静态资源访问接口
+│  └─ data                       # 上传文件与静态资源
 └─ README.md
 ```
 
@@ -145,7 +162,7 @@ eduFlow-course-admin
 ### 1. 安装依赖
 
 ```bash
-cd server
+cd server-nest
 npm install
 
 cd ../client
@@ -155,8 +172,16 @@ npm install
 ### 2. 启动后端
 
 ```bash
-cd server
+cd server-nest
 npm run dev
+```
+
+后端默认连接本机 MySQL：
+
+```text
+host: 127.0.0.1
+port: 3306
+database: eduflow_course_admin
 ```
 
 后端默认运行在：
@@ -179,6 +204,31 @@ http://localhost:5173
 ```
 
 Vite 开发环境会将 `/api` 代理到 `http://localhost:3000`。
+
+### 4. Docker 启动
+
+从项目根目录执行：
+
+```bash
+docker compose up -d --build
+```
+
+该命令会构建并启动前端与 NestJS 后端：
+
+```text
+client: http://localhost
+server image: eduflow-course-admin-server-nest
+```
+
+Docker 中的 NestJS 后端通过 `host.docker.internal:3306` 连接宿主机 MySQL。`./server-nest/data:/app/data` 只持久化上传文件和静态资源，不存放 MySQL 数据。
+
+常用 Docker 命令：
+
+```bash
+docker compose ps
+docker compose logs -f server
+docker compose down
+```
 
 ## 默认账号
 
@@ -206,25 +256,17 @@ npm run preview
 
 ### 后端托管前端产物
 
-前端构建完成后，Koa 服务会托管 `client/dist`，可以通过后端地址访问应用：
+前端构建完成后，Docker 部署会通过 Nginx 托管 `client/dist`，并将 `/api` 代理到 NestJS 后端：
 
 ```text
-http://localhost:3000
+http://localhost
 ```
 
 ## 权限模型说明
 
-当前项目采用固定角色权限模型，并非数据库动态 RBAC。角色与权限码映射维护在后端 `server/src/permissions.js` 中，前端 `client/src/permissions.ts` 保持同名权限码镜像，用于菜单、路由和按钮控制。
+当前项目采用数据库动态 RBAC。角色、权限码和角色权限映射由 NestJS 后端写入 MySQL，前端 `client/src/permissions.ts` 保持同名权限码镜像，用于菜单、路由和按钮控制。
 
-如果扩展为生产级动态 RBAC，可进一步增加：
-
-- 用户表
-- 角色表
-- 权限表
-- 用户角色关联表
-- 角色权限关联表
-
-并在登录或 `/auth/me` 接口中动态返回用户权限码。
+后端启动时会自动补齐基础表结构、权限字典和默认角色权限，并在登录或 `/auth/me` 接口中动态返回用户权限码。
 
 ## 生产化改进方向
 

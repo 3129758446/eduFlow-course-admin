@@ -9,15 +9,20 @@ services:
       - server
 
   server:
+    # 后端切换说明：
+    # - 当前配置使用 NestJS + MySQL 后端，前端 Nginx 仍通过服务名 http://server:3000 访问它。
+    # - 如需切回 Koa + SQLite 后端，把 build.context 改为 ./server，并删除 MYSQL_* 与 DATA_ROOT 环境变量。
+    image: eduflow-course-admin-server-nest
     build:
-      context: ./server
+      context: ./server-nest
       dockerfile: Dockerfile
+    env_file:
+      - ./server-nest/.env
     environment:
       - PORT=3000
       - JWT_SECRET=${JWT_SECRET:-change-me-in-production}
       - SERVE_STATIC=false
+      - DATA_ROOT=/app/data
+      - MYSQL_HOST=${MYSQL_HOST:-host.docker.internal}
     volumes:
-      - server-data:/app/data
-
-volumes:
-  server-data:
+      - ./server-nest/data:/app/data
