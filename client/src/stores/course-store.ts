@@ -113,11 +113,9 @@ export const useCourseStore = create<CourseStore>((set, get) => ({
     set((state) => ({
       draftKeyword: "",
       query: {
-        ...state.query,
-        keyword: "",
-        status: "",
-        category: "",
-        page: 1,
+        ...defaultCourseQuery,
+        // 重置筛选和排序时保留用户当前每页条数，其余查询条件回到默认时间倒序。
+        pageSize: state.query.pageSize,
       },
       loading: true,
     }));
