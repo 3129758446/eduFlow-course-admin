@@ -1,7 +1,8 @@
 // 文件作用：权限业务服务，负责角色权限查询、自定义角色维护和角色-权限映射更新。
 import { Injectable } from '@nestjs/common';
-import { PoolConnection } from 'mysql2/promise';
-import { DatabaseService } from '../database/database.service';
+import { InjectRepository } from '@nestjs/typeorm';
+import { DataSource, EntityManager, In, Repository } from 'typeorm';
+import { RoleEntity, RolePermissionEntity, UserEntity } from '../database/entities';
 import {
   DEFAULT_ROLES,
   IMMUTABLE_ROLES,
@@ -15,7 +16,15 @@ const CUSTOM_ROLE_PREFIX = 'custom_';
 
 @Injectable()
 export class PermissionService {
-  constructor(private readonly database: DatabaseService) {}
+  constructor(
+    @InjectRepository(RoleEntity)
+    private readonly roleRepository: Repository<RoleEntity>,
+    @InjectRepository(RolePermissionEntity)
+    private readonly rolePermissionRepository: Repository<RolePermissionEntity>,
+    @InjectRepository(UserEntity)
+    private readonly userRepository: Repository<UserEntity>,
+    private readonly dataSource: DataSource,
+  ) {}
 
   // 作用：归一化权限集合，自动补齐写权限依赖的查看权限。
   normalizePermissions(inputPermissions: string[] = []) {
@@ -40,14 +49,11 @@ export class PermissionService {
 
   async getPermissionsByRole(roleCode: string) {
     if (IMMUTABLE_ROLES.includes(roleCode)) return ALL_PERMISSIONS;
-    const rows = await this.database.all<{ permission_code: string }>(
-      `
-        SELECT permission_code FROM role_permissions
-        WHERE role_code = ?
-        ORDER BY permission_code ASC
-      `,
-      [roleCode],
-    );
+    const rows = await this.rolePermissionRepository.find({
+      select: ['permission_code'],
+      where: { role_code: roleCode },
+      order: { permission_code: 'ASC' },
+    });
     return rows.map((row) => row.permission_code);
   }
 
@@ -62,15 +68,11 @@ export class PermissionService {
     const editableRoleCodes = uniqueRoleCodes.filter((roleCode) => !IMMUTABLE_ROLES.includes(roleCode));
     if (!editableRoleCodes.length) return permissionsByRole;
 
-    const placeholders = editableRoleCodes.map(() => '?').join(', ');
-    const rows = await this.database.all<{ role_code: string; permission_code: string }>(
-      `
-        SELECT role_code, permission_code FROM role_permissions
-        WHERE role_code IN (${placeholders})
-        ORDER BY role_code ASC, permission_code ASC
-      `,
-      editableRoleCodes,
-    );
+    const rows = await this.rolePermissionRepository.find({
+      select: ['role_code', 'permission_code'],
+      where: { role_code: In(editableRoleCodes) },
+      order: { role_code: 'ASC', permission_code: 'ASC' },
+    });
     for (const row of rows) {
       permissionsByRole.get(row.role_code)?.push(row.permission_code);
     }
@@ -91,28 +93,7 @@ export class PermissionService {
   // 作用：返回角色列表、用户数量和每个角色的权限集合。
 
   async listRoles() {
-    const roles = await this.database.all<{
-      code: string;
-      name: string;
-      description: string;
-      editable: number;
-      builtin: number;
-      deletable: number;
-    }>(
-      `
-        SELECT code, name, description, editable, builtin, deletable
-        FROM roles
-        ORDER BY
-          CASE code
-            WHEN 'admin' THEN 1
-            WHEN 'teacher' THEN 2
-            WHEN 'student' THEN 3
-            WHEN 'custom' THEN 4
-            ELSE 5
-          END,
-          code ASC
-      `,
-    );
+    const roles = (await this.roleRepository.find()).sort(compareRoles);
     const sourceRoles = roles.length ? roles : DEFAULT_ROLES.map((role) => ({
       ...role,
       editable: IMMUTABLE_ROLES.includes(role.code) ? 0 : 1,
@@ -141,16 +122,16 @@ export class PermissionService {
     if (!validation.valid) throw new Error(`权限码不存在: ${validation.invalid.join(', ')}`);
 
     const roleCode = await this.createUniqueRoleCode();
-    await this.database.transaction(async (connection) => {
-      await this.database.run(
-        `
-          INSERT INTO roles (code, name, description, editable, builtin, deletable, updated_at)
-          VALUES (?, ?, ?, 1, 0, 1, CURRENT_TIMESTAMP)
-        `,
-        [roleCode, normalizedName, String(description ?? '').trim()],
-        connection,
-      );
-      await this.replaceRolePermissions(roleCode, this.normalizePermissions(permissions), connection);
+    await this.dataSource.transaction(async (manager) => {
+      await manager.save(RoleEntity, {
+        code: roleCode,
+        name: normalizedName,
+        description: String(description ?? '').trim(),
+        editable: 1,
+        builtin: 0,
+        deletable: 1,
+      });
+      await this.replaceRolePermissions(roleCode, this.normalizePermissions(permissions), manager);
     });
     return this.getRoleByCode(roleCode);
   }
@@ -163,10 +144,7 @@ export class PermissionService {
     const nextDescription = description === undefined ? role.description : String(description ?? '').trim();
     if (role.builtin && nextName !== role.name) throw new Error('系统默认角色名称不可修改');
 
-    await this.database.run(
-      'UPDATE roles SET name = ?, description = ?, updated_at = CURRENT_TIMESTAMP WHERE code = ?',
-      [nextName, nextDescription, roleCode],
-    );
+    await this.roleRepository.update({ code: roleCode }, { name: nextName, description: nextDescription });
     return this.getRoleByCode(roleCode);
   }
 
@@ -179,14 +157,14 @@ export class PermissionService {
     }
     const userCount = await this.countUsersByRole(roleCode);
     if (userCount > 0) throw new Error(`该角色下还有用户，请先转移 ${userCount} 个用户后再删除`);
-    await this.database.run('DELETE FROM roles WHERE code = ?', [roleCode]);
+    await this.roleRepository.delete({ code: roleCode });
   }
 
   // 作用：判断某个角色是否可分配给用户。
 
   async canAssignRole(roleCode: string) {
     if (IMMUTABLE_ROLES.includes(roleCode)) return false;
-    const role = await this.database.get<{ code: string }>('SELECT code FROM roles WHERE code = ?', [roleCode]);
+    const role = await this.roleRepository.findOneBy({ code: roleCode });
     return Boolean(role);
   }
 
@@ -194,10 +172,7 @@ export class PermissionService {
 
   async updateRolePermissions(roleCode: string, permissions: string[] = []) {
     if (IMMUTABLE_ROLES.includes(roleCode)) throw new Error('管理员权限不可修改');
-    const role = await this.database.get<{ code: string; editable: number }>(
-      'SELECT code, editable FROM roles WHERE code = ?',
-      [roleCode],
-    );
+    const role = await this.roleRepository.findOneBy({ code: roleCode });
     if (!role) throw new Error('角色不存在');
     if (!role.editable) throw new Error('该角色权限不可修改');
 
@@ -219,20 +194,7 @@ export class PermissionService {
   // 作用：查询并校验角色存在，同时把数据库布尔字段转换为 boolean。
 
   private async requireExistingRole(roleCode: string) {
-    const role = await this.database.get<{
-      code: string;
-      name: string;
-      description: string;
-      editable: number;
-      builtin: number;
-      deletable: number;
-    }>(
-      `
-        SELECT code, name, description, editable, builtin, deletable
-        FROM roles WHERE code = ?
-      `,
-      [roleCode],
-    );
+    const role = await this.roleRepository.findOneBy({ code: roleCode });
     if (!role) throw new Error('角色不存在');
     return {
       ...role,
@@ -256,7 +218,7 @@ export class PermissionService {
   private async createUniqueRoleCode() {
     for (let index = 0; index < 5; index += 1) {
       const code = `${CUSTOM_ROLE_PREFIX}${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`;
-      const exists = await this.database.get<{ code: string }>('SELECT code FROM roles WHERE code = ?', [code]);
+      const exists = await this.roleRepository.findOneBy({ code });
       if (!exists) return code;
     }
     throw new Error('角色编码生成失败，请重试');
@@ -265,10 +227,7 @@ export class PermissionService {
   // 作用：统计某个角色下还有多少用户，用于删除角色前校验。
 
   private async countUsersByRole(roleCode: string) {
-    const row = await this.database.get<{ count: number }>('SELECT COUNT(*) as count FROM users WHERE role = ?', [
-      roleCode,
-    ]);
-    return Number(row?.count ?? 0);
+    return this.userRepository.countBy({ role: roleCode });
   }
 
   // 作用：批量统计角色用户数，供角色列表展示。
@@ -277,30 +236,24 @@ export class PermissionService {
     const uniqueRoleCodes = [...new Set(roleCodes.filter(Boolean))];
     const userCountsByRole = new Map(uniqueRoleCodes.map((roleCode) => [roleCode, 0]));
     if (!uniqueRoleCodes.length) return userCountsByRole;
-    const placeholders = uniqueRoleCodes.map(() => '?').join(', ');
-    const rows = await this.database.all<{ role: string; count: number }>(
-      `
-        SELECT role, COUNT(*) as count FROM users
-        WHERE role IN (${placeholders})
-        GROUP BY role
-      `,
-      uniqueRoleCodes,
-    );
+    const rows = await this.userRepository
+      .createQueryBuilder('user')
+      .select('user.role', 'role')
+      .addSelect('COUNT(*)', 'count')
+      .where('user.role IN (:...roleCodes)', { roleCodes: uniqueRoleCodes })
+      .groupBy('user.role')
+      .getRawMany<{ role: string; count: number }>();
     for (const row of rows) userCountsByRole.set(row.role, Number(row.count));
     return userCountsByRole;
   }
 
   // 作用：事务性替换角色权限映射，保证权限保存要么全部成功，要么全部回滚。
 
-  private async replaceRolePermissions(roleCode: string, permissions: string[], connection?: PoolConnection) {
-    const work = async (executor?: PoolConnection) => {
-      await this.database.run('DELETE FROM role_permissions WHERE role_code = ?', [roleCode], executor);
+  private async replaceRolePermissions(roleCode: string, permissions: string[], connection?: EntityManager) {
+    const work = async (manager: EntityManager) => {
+      await manager.delete(RolePermissionEntity, { role_code: roleCode });
       for (const permission of permissions) {
-        await this.database.run(
-          'INSERT INTO role_permissions (role_code, permission_code) VALUES (?, ?)',
-          [roleCode, permission],
-          executor,
-        );
+        await manager.insert(RolePermissionEntity, { role_code: roleCode, permission_code: permission });
       }
     };
 
@@ -308,6 +261,17 @@ export class PermissionService {
       await work(connection);
       return;
     }
-    await this.database.transaction(work);
+    await this.dataSource.transaction(work);
   }
+}
+
+function compareRoles(left: RoleEntity, right: RoleEntity) {
+  const weight = (code: string) => {
+    if (code === 'admin') return 1;
+    if (code === 'teacher') return 2;
+    if (code === 'student') return 3;
+    if (code === 'custom') return 4;
+    return 5;
+  };
+  return weight(left.code) - weight(right.code) || left.code.localeCompare(right.code);
 }

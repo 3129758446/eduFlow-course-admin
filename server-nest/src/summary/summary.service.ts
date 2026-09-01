@@ -1,11 +1,18 @@
 // 文件作用：学习总结业务服务，维护当前用户自己的笔记/总结内容并防止跨用户访问。
 import { Injectable } from '@nestjs/common';
+import { InjectRepository } from '@nestjs/typeorm';
+import { Brackets, Repository } from 'typeorm';
 import { fail } from '../common/api.exception';
-import { DatabaseService } from '../database/database.service';
+import { parsePositiveIntId } from '../common/id.util';
+import { formatLocalDateTime } from '../database/date.util';
+import { LearningSummaryEntity } from '../database/entities';
 
 @Injectable()
 export class SummaryService {
-  constructor(private readonly database: DatabaseService) {}
+  constructor(
+    @InjectRepository(LearningSummaryEntity)
+    private readonly summaryRepository: Repository<LearningSummaryEntity>,
+  ) {}
 
   // 作用：分页查询当前用户自己的学习总结，支持标题/内容关键词搜索。
 
@@ -14,52 +21,46 @@ export class SummaryService {
     const pageSize = Math.min(Math.max(Number(query.pageSize) || 10, 1), 50);
     const keyword = String(query.keyword ?? '').trim();
     const offset = (page - 1) * pageSize;
-    let where = 'WHERE user_id = ?';
-    const params: Array<string | number> = [userId];
+    const builder = this.summaryRepository
+      .createQueryBuilder('summary')
+      .where('summary.user_id = :userId', { userId });
 
     if (keyword) {
-      where += ' AND (title LIKE ? OR content LIKE ?)';
-      params.push(`%${keyword}%`, `%${keyword}%`);
+      builder.andWhere(new Brackets((query) => {
+        query
+          .where('summary.title LIKE :keyword', { keyword: `%${keyword}%` })
+          .orWhere('summary.content LIKE :keyword', { keyword: `%${keyword}%` });
+      }));
     }
 
-    const total = await this.database.get<{ count: number }>(
-      `SELECT COUNT(*) as count FROM learning_summaries ${where}`,
-      params,
-    );
-    const list = await this.database.all(
-      `
-        SELECT
-          id,
-          title,
-          DATE_FORMAT(DATE_ADD(created_at, INTERVAL 8 HOUR), '%Y-%m-%d %H:%i:%s') AS created_at,
-          DATE_FORMAT(DATE_ADD(updated_at, INTERVAL 8 HOUR), '%Y-%m-%d %H:%i:%s') AS updated_at
-        FROM learning_summaries
-        ${where}
-        ORDER BY updated_at DESC, id DESC
-        LIMIT ? OFFSET ?
-      `,
-      [...params, pageSize, offset],
-    );
+    const [rows, total] = await builder
+      .orderBy('summary.updated_at', 'DESC')
+      .addOrderBy('summary.id', 'DESC')
+      .take(pageSize)
+      .skip(offset)
+      .getManyAndCount();
+    const list = rows.map((summary) => ({
+      id: summary.id,
+      title: summary.title,
+      created_at: formatDateTime(summary.created_at),
+      updated_at: formatDateTime(summary.updated_at),
+    }));
 
-    return { list, total: Number(total?.count ?? 0), page, pageSize };
+    return { list, total, page, pageSize };
   }
 
   // 作用：查询当前用户自己的单条总结，防止通过 ID 访问其他用户内容。
 
   async detail(id: string, userId: number) {
-    const summary = await this.database.get(
-      `
-        SELECT
-          id,
-          title,
-          content,
-          DATE_FORMAT(DATE_ADD(created_at, INTERVAL 8 HOUR), '%Y-%m-%d %H:%i:%s') AS created_at,
-          DATE_FORMAT(DATE_ADD(updated_at, INTERVAL 8 HOUR), '%Y-%m-%d %H:%i:%s') AS updated_at
-        FROM learning_summaries
-        WHERE id = ? AND user_id = ?
-      `,
-      [id, userId],
-    );
+    const summaryId = parsePositiveIntId(id, '学习总结不存在');
+    const row = await this.summaryRepository.findOneBy({ id: summaryId, user_id: userId });
+    const summary = row ? {
+      id: row.id,
+      title: row.title,
+      content: row.content,
+      created_at: formatDateTime(row.created_at),
+      updated_at: formatDateTime(row.updated_at),
+    } : null;
     if (!summary) fail(404, '学习总结不存在');
     return summary;
   }
@@ -68,31 +69,25 @@ export class SummaryService {
 
   async create(userId: number, body: Record<string, unknown>) {
     const payload = parseSummaryPayload(body);
-    const result = await this.database.run(
-      `
-        INSERT INTO learning_summaries (user_id, title, content)
-        VALUES (?, ?, ?)
-      `,
-      [userId, payload.title, payload.content],
-    );
-    return this.detail(String(result.insertId), userId);
+    const summary = await this.summaryRepository.save(this.summaryRepository.create({
+      user_id: userId,
+      title: payload.title,
+      content: payload.content,
+    }));
+    return this.detail(String(summary.id), userId);
   }
 
   // 作用：更新当前用户自己的总结，未传字段沿用原值。
 
   async update(id: string, userId: number, body: Record<string, unknown>) {
-    const existing = await this.detail(id, userId) as { title: string; content: string };
+    const summaryId = parsePositiveIntId(id, '学习总结不存在');
+    const existing = await this.summaryRepository.findOneBy({ id: summaryId, user_id: userId });
+    if (!existing) fail(404, '学习总结不存在');
     const payload = parseSummaryPayload({
       title: body.title ?? existing.title,
       content: body.content ?? existing.content,
     });
-    await this.database.run(
-      `
-        UPDATE learning_summaries SET title = ?, content = ?, updated_at = CURRENT_TIMESTAMP
-        WHERE id = ? AND user_id = ?
-      `,
-      [payload.title, payload.content, id, userId],
-    );
+    await this.summaryRepository.save({ ...existing, ...payload });
     return this.detail(id, userId);
   }
 
@@ -100,7 +95,7 @@ export class SummaryService {
 
   async delete(id: string, userId: number) {
     await this.detail(id, userId);
-    await this.database.run('DELETE FROM learning_summaries WHERE id = ? AND user_id = ?', [id, userId]);
+    await this.summaryRepository.delete({ id: parsePositiveIntId(id, '学习总结不存在'), user_id: userId });
   }
 }
 
@@ -112,3 +107,5 @@ function parseSummaryPayload(body: Record<string, unknown>) {
   if (!content) fail(400, '内容不能为空');
   return { title, content };
 }
+
+const formatDateTime = formatLocalDateTime;

@@ -7,7 +7,23 @@ import { INestApplication } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
 import mysql from 'mysql2/promise';
 import request from 'supertest';
+import { DataSource } from 'typeorm';
 import { AppModule } from '../src/app.module';
+
+async function seedApiContractFixtures(dataSource: DataSource) {
+  await dataSource.query(
+    `INSERT INTO courses (name, description, instructor, category, status, student_count, lesson_count)
+     VALUES (?, ?, ?, ?, ?, ?, ?)`,
+    ['Contract Course', 'Contract test course', 'Contract Teacher', 'Test', 'published', 1, 3],
+  );
+  const [{ id: courseId }] = await dataSource.query('SELECT id FROM courses ORDER BY id ASC LIMIT 1');
+
+  await dataSource.query(
+    `INSERT INTO students (name, student_no, class_name, phone, email, status, course_ids)
+     VALUES (?, ?, ?, ?, ?, ?, ?)`,
+    ['Contract Student', '20240001', 'Contract Class', '13800000000', 'contract-student@example.com', 'active', JSON.stringify([courseId])],
+  );
+}
 
 describe('NestJS API contract compatible with the Koa server', () => {
   let app: INestApplication;
@@ -38,6 +54,7 @@ describe('NestJS API contract compatible with the Koa server', () => {
 
     app = moduleRef.createNestApplication();
     await app.init();
+    await seedApiContractFixtures(app.get(DataSource));
   });
 
   afterAll(async () => {
@@ -352,6 +369,26 @@ describe('NestJS API contract compatible with the Koa server', () => {
       .set('Authorization', `Bearer ${adminToken}`)
       .expect(200);
     expect(deleted.body).toEqual({ code: 0, msg: '删除成功', data: null });
+  });
+
+  it('keeps invalid route ids as stable not-found responses', async () => {
+    const course = await request(app.getHttpServer())
+      .get('/api/courses/not-a-number')
+      .set('Authorization', `Bearer ${adminToken}`)
+      .expect(404);
+    expect(course.body.msg).toBe('课程不存在');
+
+    const student = await request(app.getHttpServer())
+      .get('/api/students/not-a-number')
+      .set('Authorization', `Bearer ${adminToken}`)
+      .expect(404);
+    expect(student.body.msg).toBe('学生不存在');
+
+    const summary = await request(app.getHttpServer())
+      .get('/api/summary/not-a-number')
+      .set('Authorization', `Bearer ${studentToken}`)
+      .expect(404);
+    expect(summary.body.msg).toBe('学习总结不存在');
   });
 
   it('keeps student validation, detail course expansion and course count recalculation compatible', async () => {

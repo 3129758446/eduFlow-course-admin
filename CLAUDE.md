@@ -94,7 +94,7 @@ eduFlow-course-admin/
     src/
       auth/               # 登录、用户信息和密码接口
       courses/            # 课程管理接口
-      database/           # MySQL 连接池、建库建表和初始化数据
+      database/           # TypeORM 配置、Entity、Migration、首次初始化和日期工具
       dashboard/          # 数据看板接口
       students/           # 学生管理接口
       summary/            # 学习笔记接口
@@ -159,7 +159,7 @@ Vite 开发代理（`client/vite.config.ts`）：`/api` → `http://localhost:30
   -> roles / permissions / role_permissions 维护角色权限映射
   -> 登录或 /auth/me 动态下发 user.permissions
   -> 前端菜单、路由、按钮按权限控制
-  -> 后端接口通过 JWT + requirePermission 再次鉴权
+  -> 后端接口通过 JwtAuthGuard + PermissionsGuard 再次鉴权
 ```
 
 后端 `server-nest/src/permissions/permissions.constants.ts` 维护权限码、默认角色、权限分组和权限依赖；`server-nest/src/permissions/permission.service.ts` 负责从数据库读取角色权限、创建自定义角色、更新角色权限、补齐权限依赖、保护 admin 不可变。前端 `client/src/permissions.ts` 是同名权限码镜像，用于类型提示和 UI 控制，最终安全边界仍以后端接口鉴权为准。
@@ -171,7 +171,7 @@ Vite 开发代理（`client/vite.config.ts`）：`/api` → `http://localhost:30
 | 菜单 | `nav-config.tsx` + `AppShell.tsx` | `navItems` 每项声明所需权限，无权限不显示 |
 | 路由 | `RequirePermission.tsx` | 无权限跳转 `/403`，传递 `from` 和 `requiredPermission` |
 | 按钮/组件 | `Permission.tsx` | `code`（单权限）或 `any`（任一满足），可选 `fallback` |
-| 接口 | `authenticateToken` + `requirePermission` | 先校验 JWT，再按数据库中的最新角色计算权限并返回 403 |
+| 接口 | `JwtAuthGuard` + `PermissionsGuard` | 先校验 JWT，再按数据库中的最新角色计算权限并返回 403 |
 
 内置角色：`admin`（始终拥有全部权限，不依赖 `role_permissions`，不可编辑/删除）、`teacher`、`student`。自定义角色通过 `PermissionsPage` 管理，支持创建、编辑说明、可视化勾选权限、删除未绑定用户的角色。
 
@@ -182,7 +182,7 @@ Vite 开发代理（`client/vite.config.ts`）：`/api` → `http://localhost:30
 1. **启动初始化**：`provider.tsx` 挂载时调用 `initializeAuth()`，从 localStorage 读取 token，调用 `GET /auth/me` 验证并重新拉取用户最新权限。无 token 或过期则清除并显示登录页。用 `initializePromise` 单例防止重复初始化。
 2. **登录**：`LoginPage` → `POST /auth/login` → 后端校验密码并签发 JWT → `getEffectivePermissions(user)` 计算权限集合 → localStorage 持久化 token + user → store 更新。
 3. **前端消费权限**：`auth-store` 提供 `hasPermission/hasAnyPermission`；菜单、路由守卫和按钮组件统一读取 `user.permissions`。
-4. **接口鉴权**：所有核心业务接口使用 `authenticateToken` 校验登录态，再使用 `requirePermission(permission)` 校验接口权限。权限中间件会按 `ctx.state.user.id` 重新查库获取当前角色，避免旧 token 携带过期角色导致越权。
+4. **接口鉴权**：所有核心业务接口使用 `JwtAuthGuard` 校验登录态，再使用 `PermissionsGuard` + `@RequirePermission(permission)` 校验接口权限。Guard 会按 `request.user.id` 重新查库获取当前角色，避免旧 token 携带过期角色导致越权。
 5. **登出**：`clearAuth()` + `resetAllStores()`（清空所有 Zustand store）。
 6. **401 响应**：Axios 响应拦截器自动清除鉴权。
 
@@ -205,6 +205,31 @@ Vite 开发代理（`client/vite.config.ts`）：`/api` → `http://localhost:30
 
 `+ admin` 表示除了权限码校验外，还要求当前登录用户角色必须是 `admin`。
 
+## server-nest 数据层约定
+
+`server-nest` 当前默认使用 TypeORM + MySQL。业务模块通过 Entity、Repository 和 QueryBuilder 访问数据库，不再直接依赖旧版 `DatabaseService` 或手写 `mysql2` 查询；`mysql2` 仍作为 TypeORM 的 MySQL 驱动存在，并在启动前建库逻辑中用于确保数据库存在。
+
+核心文件：
+
+- `server-nest/src/database/typeorm.config.ts`：读取环境变量、创建 MySQL 数据库、生成 TypeORM 配置。
+- `server-nest/src/database/entities/`：课程、学生、用户、角色、权限、学习总结等实体定义，是业务数据结构的代码入口。
+- `server-nest/src/database/migrations/1788134400000-create-initial-tables.ts`：创建初始表、索引和外键；迁移文件名使用时间戳保证 TypeORM 执行顺序。
+- `server-nest/src/database/database.init.ts`：首次启动初始化系统默认角色、权限、角色权限映射和默认账号，仅在数据库缺少对应数据时补齐，不覆盖已有业务数据。
+- `server-nest/src/database/date.util.ts`：统一本地日期和本地时间格式，避免接口返回 UTC 偏移导致日期错位。
+- `server-nest/src/database/recent-learning-activity.service.ts`：近 7 天学习活跃度数据库暂无真实行为表时继续按当前逻辑每日补齐一次，并保存在数据层内。
+
+迁移和初始化分工：
+
+- Migration 只负责数据库结构，包括表、索引、外键和兼容性保护。
+- Init 只负责系统默认数据，包括 `admin`、`teacher`、`student` 角色权限和默认账号。
+- 业务演示数据不再写入初始化文件，课程、学生、总结等内容一律读取数据库已有数据。
+- 生产环境默认不自动跑迁移，需要显式设置 `TYPEORM_MIGRATIONS_RUN=true` 或通过部署流程执行迁移。
+
+涉及数据层改动时，至少运行：
+
+- `cd server-nest && npm run build`
+- `cd server-nest && npm test -- --verbose`
+
 ## ECharts 集成
 
 `components/echarts/chart-core.tsx` 使用模块化导入（仅注册 Bar / Line / Pie / Grid / Graphic / Legend / Tooltip + CanvasRenderer）减小打包体积。每个图表的业务组件纯展示：接收数据 props，`useMemo` 计算 option，传给 `ChartContainer`。
@@ -219,10 +244,11 @@ Vite 开发代理（`client/vite.config.ts`）：`/api` → `http://localhost:30
 - 前端 `PermissionCode` 类型从 `PERMISSIONS` 常量对象自动推导
 - 权限数据落库在 `roles`、`permissions`、`role_permissions`，角色权限变更后通过 `/auth/me` 或重新登录刷新到前端
 - 新增写操作权限时，需要在 `PERMISSION_DEPENDENCIES` 中配置对应 `:view` 依赖
-- 后端接口权限必须通过 `requirePermission()` 兜底，前端 `Permission` 组件只负责展示体验
+- 后端接口权限必须通过 `JwtAuthGuard` + `PermissionsGuard` 兜底，前端 `Permission` 组件只负责展示体验
 - 默认业务数据库为本机 MySQL 3306 的 `eduflow_course_admin`，Docker 容器通过 `host.docker.internal:3306` 访问宿主机 MySQL
 - `server-nest/data` 只存放上传文件和静态资源；MySQL 数据不在项目 volume 中
 - 旧版 Koa 数据库文件位于 `server/data/homework.db`，SQLite + WAL 模式
+- 不要恢复 `server-nest/src/database/database.service.ts` 或 `database.seeder.ts` 这类旧式集中初始化文件；新增表结构走 migration，新增系统默认数据走 `database.init.ts`
 - 新建普通账号初始密码统一为 `123456`，不能创建或分配 `admin` 角色
 - 课程状态切换用 `PATCH /api/courses/:id/status`，不经过完整 update
 

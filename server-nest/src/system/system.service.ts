@@ -1,34 +1,30 @@
 // 文件作用：系统管理业务服务，维护后台账号、角色分配、自定义角色和权限配置。
 import { Injectable } from '@nestjs/common';
+import { InjectRepository } from '@nestjs/typeorm';
 import bcrypt from 'bcryptjs';
+import { Repository } from 'typeorm';
 import { fail } from '../common/api.exception';
-import { DatabaseService } from '../database/database.service';
+import { UserEntity } from '../database/entities';
 import { PermissionService } from '../permissions/permission.service';
 
-const PUBLIC_USER_FIELDS = 'id, username, name, role, avatar, created_at';
 const INITIAL_PASSWORD = '123456';
 
 @Injectable()
 export class SystemService {
   constructor(
-    private readonly database: DatabaseService,
+    @InjectRepository(UserEntity)
+    private readonly userRepository: Repository<UserEntity>,
     private readonly permissionService: PermissionService,
   ) {}
 
   // 作用：返回账号管理页用户列表，并附带每个用户当前角色对应的最新权限集合。
 
   async listUsers() {
-    const users = await this.database.all<{ role: string } & Record<string, unknown>>(
-      `
-        SELECT ${PUBLIC_USER_FIELDS}
-        FROM users
-        ORDER BY id ASC
-      `,
-    );
+    const users = await this.userRepository.find({ order: { id: 'ASC' } });
     const permissionsByRole = await this.permissionService.getPermissionsByRoles(users.map((user) => user.role));
 
     return users.map((user) => ({
-      ...user,
+      ...toPublicUser(user),
       permissions: permissionsByRole.get(user.role) ?? [],
     }));
   }
@@ -37,15 +33,12 @@ export class SystemService {
 
   async updateUserRole(userId: number, role: string) {
     if (!Number.isInteger(userId) || userId <= 0) fail(400, '用户 ID 不合法');
-    const targetUser = await this.database.get<{ id: number; role: string }>(
-      'SELECT id, role FROM users WHERE id = ?',
-      [userId],
-    );
+    const targetUser = await this.userRepository.findOneBy({ id: userId });
     if (!targetUser) fail(404, '用户不存在');
     if (targetUser.role === 'admin') fail(400, '管理员账号不可修改角色');
     if (!(await this.permissionService.canAssignRole(role))) fail(400, '角色不存在或不可分配');
 
-    await this.database.run('UPDATE users SET role = ? WHERE id = ?', [role, userId]);
+    await this.userRepository.update({ id: userId }, { role });
     return this.findPublicUserById(userId);
   }
 
@@ -57,17 +50,16 @@ export class SystemService {
     const role = String(body?.role ?? '').trim();
     if (!username || !name || !role) fail(400, '用户名、姓名和角色不能为空');
     if (!(await this.permissionService.canAssignRole(role))) fail(400, '角色不可分配');
-    if (await this.database.get('SELECT id FROM users WHERE username = ?', [username])) fail(400, '用户名已存在');
+    if (await this.userRepository.findOneBy({ username })) fail(400, '用户名已存在');
 
-    const result = await this.database.run(
-      `
-        INSERT INTO users (username, password, name, role)
-        VALUES (?, ?, ?, ?)
-      `,
-      [username, bcrypt.hashSync(INITIAL_PASSWORD, 10), name, role],
-    );
+    const user = await this.userRepository.save(this.userRepository.create({
+      username,
+      password: bcrypt.hashSync(INITIAL_PASSWORD, 10),
+      name,
+      role,
+    }));
 
-    return this.findPublicUserById(Number(result.insertId));
+    return this.findPublicUserById(user.id);
   }
 
   // 作用：删除账号；禁止删除自己和 admin，避免权限管理被误操作锁死。
@@ -75,14 +67,11 @@ export class SystemService {
   async deleteUser(userId: number, currentUserId: number) {
     if (!Number.isInteger(userId) || userId <= 0) fail(400, '用户 ID 不合法');
     if (userId === currentUserId) fail(400, '不能删除当前登录用户');
-    const targetUser = await this.database.get<{ id: number; role: string }>(
-      'SELECT id, role FROM users WHERE id = ?',
-      [userId],
-    );
+    const targetUser = await this.userRepository.findOneBy({ id: userId });
     if (!targetUser) fail(404, '用户不存在');
     if (targetUser.role === 'admin') fail(400, '管理员账号不可删除');
 
-    await this.database.run('DELETE FROM users WHERE id = ?', [userId]);
+    await this.userRepository.delete({ id: userId });
   }
 
   // 作用：返回权限管理页角色列表，实际组装逻辑由 PermissionService 统一维护。
@@ -133,10 +122,12 @@ export class SystemService {
   // 作用：按 ID 查询脱敏用户信息，并补齐当前角色权限。
 
   private async findPublicUserById(id: number) {
-    const user = await this.database.get<Record<string, unknown>>(
-      `SELECT ${PUBLIC_USER_FIELDS} FROM users WHERE id = ?`,
-      [id],
-    );
-    return user ? { ...user, permissions: await this.permissionService.getEffectivePermissions(user as { role: string }) } : null;
+    const user = await this.userRepository.findOneBy({ id });
+    return user ? { ...toPublicUser(user), permissions: await this.permissionService.getEffectivePermissions(user) } : null;
   }
+}
+
+function toPublicUser(user: UserEntity) {
+  const { password: _, ...publicUser } = user;
+  return publicUser;
 }

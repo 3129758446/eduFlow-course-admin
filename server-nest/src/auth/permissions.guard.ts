@@ -1,8 +1,10 @@
 // 文件作用：RBAC 权限守卫，读取接口所需权限码并按用户最新角色权限执行接口级鉴权。
 import { CanActivate, ExecutionContext, Injectable, SetMetadata } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
+import { InjectRepository } from '@nestjs/typeorm';
+import { Repository } from 'typeorm';
 import { fail } from '../common/api.exception';
-import { DatabaseService } from '../database/database.service';
+import { UserEntity } from '../database/entities';
 import { PermissionService } from '../permissions/permission.service';
 import { JwtUser } from './auth.types';
 
@@ -15,7 +17,8 @@ export const RequirePermission = (permission: string) => SetMetadata(PERMISSION_
 export class PermissionsGuard implements CanActivate {
   constructor(
     private readonly reflector: Reflector,
-    private readonly database: DatabaseService,
+    @InjectRepository(UserEntity)
+    private readonly userRepository: Repository<UserEntity>,
     private readonly permissionService: PermissionService,
   ) {}
 
@@ -30,10 +33,7 @@ export class PermissionsGuard implements CanActivate {
 
     const request = context.switchToHttp().getRequest<{ user?: JwtUser }>();
     const userId = request.user?.id;
-    const user = await this.database.get<{ id: number; username: string; name: string; role: string }>(
-      'SELECT id, username, name, role FROM users WHERE id = ?',
-      [Number(userId)],
-    );
+    const user = await this.userRepository.findOneBy({ id: Number(userId) });
 
     if (!user) fail(401, '用户不存在');
 
