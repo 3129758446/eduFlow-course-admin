@@ -5,6 +5,7 @@ import { Repository } from 'typeorm';
 import { fail } from '../common/api.exception';
 import { parsePositiveIntId } from '../common/id.util';
 import { CourseEntity } from '../database/entities';
+import { CourseListQueryDto, CreateCourseDto, UpdateCourseDto } from './dto/course.dto';
 
 @Injectable()
 export class CoursesService {
@@ -15,7 +16,7 @@ export class CoursesService {
 
   // 作用：提供课程列表分页、关键词/状态/分类筛选和表格排序，响应结构保持旧 Koa 接口一致。
 
-  async list(query: Record<string, string>) {
+  async list(query: CourseListQueryDto) {
     const page = Number(query.page || 1);
     const pageSize = Number(query.pageSize || 10);
     const { keyword, status, category, sortField, sortOrder } = query;
@@ -37,7 +38,7 @@ export class CoursesService {
     const allowedSortFields = ['student_count', 'lesson_count', 'created_at', 'name'];
     let sortColumn = 'created_at';
     let sortDirection: 'ASC' | 'DESC' = 'DESC';
-    if (sortField && allowedSortFields.includes(sortField) && ['ascend', 'descend'].includes(sortOrder)) {
+    if (sortField && allowedSortFields.includes(sortField) && sortOrder && ['ascend', 'descend'].includes(sortOrder)) {
       sortColumn = sortField;
       sortDirection = sortOrder === 'ascend' ? 'ASC' : 'DESC';
     }
@@ -73,9 +74,8 @@ export class CoursesService {
 
   // 作用：创建课程，默认状态为 draft，保留 Koa 版本 201 创建语义。
 
-  async create(body: Record<string, unknown>) {
+  async create(body: CreateCourseDto) {
     const { name, description, instructor, category, status, lesson_count } = body;
-    if (!name) fail(400, '课程名称不能为空');
 
     const course = await this.courseRepository.save(this.courseRepository.create({
       name: String(name),
@@ -91,7 +91,7 @@ export class CoursesService {
 
   // 作用：更新课程基本信息，未传字段沿用原值，避免前端局部编辑时覆盖为空。
 
-  async update(id: string, body: Record<string, unknown>) {
+  async update(id: string, body: UpdateCourseDto) {
     const courseId = parsePositiveIntId(id, '课程不存在');
     const existing = await this.courseRepository.findOneBy({ id: courseId });
     if (!existing) fail(404, '课程不存在');

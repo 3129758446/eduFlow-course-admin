@@ -9,6 +9,7 @@ import mysql from 'mysql2/promise';
 import request from 'supertest';
 import { DataSource } from 'typeorm';
 import { AppModule } from '../src/app.module';
+import { createValidationPipe } from '../src/common/validation.pipe';
 
 async function seedApiContractFixtures(dataSource: DataSource) {
   await dataSource.query(
@@ -53,6 +54,7 @@ describe('NestJS API contract compatible with the Koa server', () => {
     }).compile();
 
     app = moduleRef.createNestApplication();
+    app.useGlobalPipes(createValidationPipe());
     await app.init();
     await seedApiContractFixtures(app.get(DataSource));
   });
@@ -369,6 +371,38 @@ describe('NestJS API contract compatible with the Koa server', () => {
       .set('Authorization', `Bearer ${adminToken}`)
       .expect(200);
     expect(deleted.body).toEqual({ code: 0, msg: '删除成功', data: null });
+  });
+
+  it('keeps DTO validation errors in the legacy envelope shape', async () => {
+    const response = await request(app.getHttpServer())
+      .post('/api/courses')
+      .set('Authorization', `Bearer ${adminToken}`)
+      .send({
+        name: '非法状态课程',
+        status: 'archived',
+      })
+      .expect(400);
+
+    expect(response.body).toEqual({
+      code: 400,
+      msg: '课程状态不合法',
+      data: null,
+    });
+  });
+
+  it('strips unknown DTO fields without rejecting compatible frontend payloads', async () => {
+    const response = await request(app.getHttpServer())
+      .post('/api/courses')
+      .set('Authorization', `Bearer ${adminToken}`)
+      .send({
+        name: '未知字段兼容测试课程',
+        description: '验证 whitelist 剥离未声明字段',
+        unexpected_field: 'should not be persisted',
+      })
+      .expect(201);
+
+    expect(response.body.code).toBe(0);
+    expect(response.body.data).not.toHaveProperty('unexpected_field');
   });
 
   it('keeps invalid route ids as stable not-found responses', async () => {

@@ -6,6 +6,7 @@ import { PermissionsGuard, RequirePermission } from '../auth/permissions.guard';
 import { ok } from '../common/api-response';
 import { PERMISSIONS } from '../permissions/permissions.constants';
 import { CoursesService } from './courses.service';
+import { CourseListQueryDto, CreateCourseDto, UpdateCourseDto } from './dto/course.dto';
 
 @Controller('api/courses')
   @UseGuards(JwtAuthGuard, PermissionsGuard)
@@ -16,7 +17,7 @@ export class CoursesController {
 
   @Get()
   @RequirePermission(PERMISSIONS.COURSES_VIEW)
-  async list(@Query() query: Record<string, string>) {
+  async list(@Query() query: CourseListQueryDto) {
     return ok(await this.coursesService.list(query));
   }
 
@@ -40,7 +41,7 @@ export class CoursesController {
 
   @Post()
   @RequirePermission(PERMISSIONS.COURSES_CREATE)
-  async create(@Body() body: Record<string, unknown>, @Res({ passthrough: true }) res: Response) {
+  async create(@Body() body: CreateCourseDto, @Res({ passthrough: true }) res: Response) {
     res.status(201);
     return ok(await this.coursesService.create(body));
   }
@@ -49,7 +50,7 @@ export class CoursesController {
 
   @Put(':id')
   @RequirePermission(PERMISSIONS.COURSES_UPDATE)
-  async update(@Param('id') id: string, @Body() body: Record<string, unknown>) {
+  async update(@Param('id') id: string, @Body() body: UpdateCourseDto) {
     return ok(await this.coursesService.update(id, body));
   }
 

@@ -6,6 +6,7 @@ import { PermissionsGuard, RequirePermission } from '../auth/permissions.guard';
 import { ok } from '../common/api-response';
 import { PERMISSIONS } from '../permissions/permissions.constants';
 import { StudentsService } from './students.service';
+import { CheckStudentNoQueryDto, CreateStudentDto, StudentListQueryDto, UpdateStudentDto } from './dto/student.dto';
 
 @Controller('api/students')
   @UseGuards(JwtAuthGuard, PermissionsGuard)
@@ -16,7 +17,7 @@ export class StudentsController {
 
   @Get()
   @RequirePermission(PERMISSIONS.STUDENTS_VIEW)
-  async list(@Query() query: Record<string, string>) {
+  async list(@Query() query: StudentListQueryDto) {
     return ok(await this.studentsService.list(query));
   }
 
@@ -32,8 +33,8 @@ export class StudentsController {
 
   @Get('check-no')
   @RequirePermission(PERMISSIONS.STUDENTS_UPDATE)
-  async checkNo(@Query('student_no') studentNo: string, @Query('excludeId') excludeId: string) {
-    return ok(await this.studentsService.checkNo(studentNo, excludeId));
+  async checkNo(@Query() query: CheckStudentNoQueryDto) {
+    return ok(await this.studentsService.checkNo(query));
   }
 
   // 作用：获取学员详情，并返回已选课程信息。
@@ -48,7 +49,7 @@ export class StudentsController {
 
   @Post()
   @RequirePermission(PERMISSIONS.STUDENTS_CREATE)
-  async create(@Body() body: Record<string, unknown>, @Res({ passthrough: true }) res: Response) {
+  async create(@Body() body: CreateStudentDto, @Res({ passthrough: true }) res: Response) {
     res.status(201);
     return ok(await this.studentsService.create(body));
   }
@@ -57,7 +58,7 @@ export class StudentsController {
 
   @Put(':id')
   @RequirePermission(PERMISSIONS.STUDENTS_UPDATE)
-  async update(@Param('id') id: string, @Body() body: Record<string, unknown>) {
+  async update(@Param('id') id: string, @Body() body: UpdateStudentDto) {
     return ok(await this.studentsService.update(id, body));
   }
 

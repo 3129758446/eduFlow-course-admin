@@ -6,6 +6,7 @@ import { Repository } from 'typeorm';
 import { fail } from '../common/api.exception';
 import { UserEntity } from '../database/entities';
 import { PermissionService } from '../permissions/permission.service';
+import { CreateRoleDto, CreateUserDto, UpdateRoleInfoDto } from './dto/system.dto';
 
 const INITIAL_PASSWORD = '123456';
 
@@ -44,7 +45,7 @@ export class SystemService {
 
   // 作用：新增系统账号，沿用旧 Koa 默认初始密码 123456。
 
-  async createUser(body: { username?: string; name?: string; role?: string }) {
+  async createUser(body: CreateUserDto) {
     const username = String(body?.username ?? '').trim();
     const name = String(body?.name ?? '').trim();
     const role = String(body?.role ?? '').trim();
@@ -82,7 +83,7 @@ export class SystemService {
 
   // 作用：新增自定义角色，并保存角色-权限码映射。
 
-  async createRole(body: { name?: string; description?: string; permissions?: string[] }) {
+  async createRole(body: CreateRoleDto) {
     return this.permissionService.createRole({
       name: body?.name,
       description: body?.description,
@@ -92,7 +93,7 @@ export class SystemService {
 
   // 作用：修改角色基础信息，如名称和描述。
 
-  async updateRoleInfo(code: string, body: { name?: string; description?: string }) {
+  async updateRoleInfo(code: string, body: UpdateRoleInfoDto) {
     return this.permissionService.updateRoleInfo(String(code ?? '').trim(), {
       name: body?.name,
       description: body?.description,

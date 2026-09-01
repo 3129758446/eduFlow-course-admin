@@ -8,6 +8,7 @@ import { fail } from '../common/api.exception';
 import { ok } from '../common/api-response';
 import { PERMISSIONS } from '../permissions/permissions.constants';
 import { SystemService } from './system.service';
+import { CreateRoleDto, CreateUserDto, UpdateRoleInfoDto, UpdateRolePermissionsDto, UpdateUserRoleDto } from './dto/system.dto';
 
 interface AuthedRequest extends Request {
   user: JwtUser;
@@ -30,7 +31,7 @@ export class SystemController {
 
   @Patch('users/:id/role')
   @RequirePermission(PERMISSIONS.ACCOUNTS_UPDATE_ROLE)
-  async updateUserRole(@Param('id') id: string, @Body() body: { role?: string }) {
+  async updateUserRole(@Param('id') id: string, @Body() body: UpdateUserRoleDto) {
     return ok(await this.systemService.updateUserRole(Number(id), String(body?.role ?? '').trim()));
   }
 
@@ -38,7 +39,7 @@ export class SystemController {
 
   @Post('users')
   @RequirePermission(PERMISSIONS.ACCOUNTS_UPDATE_ROLE)
-  async createUser(@Body() body: { username?: string; name?: string; role?: string }, @Res({ passthrough: true }) res: Response) {
+  async createUser(@Body() body: CreateUserDto, @Res({ passthrough: true }) res: Response) {
     res.status(201);
     return ok(await this.systemService.createUser(body), '账号创建成功，初始密码为 123456');
   }
@@ -66,7 +67,7 @@ export class SystemController {
   @RequirePermission(PERMISSIONS.ACCOUNTS_UPDATE_ROLE)
   async createRole(
     @Req() req: AuthedRequest,
-    @Body() body: { name?: string; description?: string; permissions?: string[] },
+    @Body() body: CreateRoleDto,
     @Res({ passthrough: true }) res: Response,
   ) {
     // 作用：角色配置属于高风险操作，除权限码外还要求当前登录用户真实角色是 admin。
@@ -83,7 +84,7 @@ export class SystemController {
 
   @Patch('roles/:code')
   @RequirePermission(PERMISSIONS.ACCOUNTS_UPDATE_ROLE)
-  async updateRoleInfo(@Req() req: AuthedRequest, @Param('code') code: string, @Body() body: { name?: string; description?: string }) {
+  async updateRoleInfo(@Req() req: AuthedRequest, @Param('code') code: string, @Body() body: UpdateRoleInfoDto) {
     if (req.user?.role !== 'admin') fail(403, '只有管理员可以修改角色');
     try {
       return ok(await this.systemService.updateRoleInfo(code, body), '角色信息已更新');
@@ -118,7 +119,7 @@ export class SystemController {
 
   @Patch('roles/:code/permissions')
   @RequirePermission(PERMISSIONS.ACCOUNTS_UPDATE_ROLE)
-  async updateRolePermissions(@Req() req: AuthedRequest, @Param('code') code: string, @Body() body: { permissions?: string[] }) {
+  async updateRolePermissions(@Req() req: AuthedRequest, @Param('code') code: string, @Body() body: UpdateRolePermissionsDto) {
     if (req.user?.role !== 'admin') fail(403, '只有管理员可以修改角色权限');
     try {
       return ok(await this.systemService.updateRolePermissions(code, body?.permissions));

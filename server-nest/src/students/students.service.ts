@@ -5,8 +5,8 @@ import { DataSource, In, Not, Repository } from 'typeorm';
 import { fail } from '../common/api.exception';
 import { parsePositiveIntId } from '../common/id.util';
 import { CourseEntity, StudentEntity } from '../database/entities';
+import { CheckStudentNoQueryDto, CreateStudentDto, StudentListQueryDto, UpdateStudentDto } from './dto/student.dto';
 
-type StudentRow = StudentEntity & { course_ids?: string };
 type StudentPayload =
   | { error: string }
   | {
@@ -31,7 +31,7 @@ export class StudentsService {
 
   // 作用：提供学员列表分页、关键词/班级/状态筛选，并把 course_ids JSON 字符串转成数组。
 
-  async list(query: Record<string, string>) {
+  async list(query: StudentListQueryDto) {
     const page = Number(query.page || 1);
     const pageSize = Number(query.pageSize || 10);
     const { keyword, status } = query;
@@ -79,9 +79,9 @@ export class StudentsService {
 
   // 作用：校验学号是否可用，编辑时支持 excludeId 排除当前学员。
 
-  async checkNo(studentNoRaw: string, excludeIdRaw: string) {
-    const studentNo = normalizeText(studentNoRaw);
-    const excludeId = normalizeText(excludeIdRaw);
+  async checkNo(query: CheckStudentNoQueryDto) {
+    const studentNo = normalizeText(query.student_no);
+    const excludeId = normalizeText(query.excludeId);
     if (!studentNo) fail(400, '学号不能为空');
     const where = excludeId
       ? { student_no: studentNo, id: Not(Number(excludeId)) }
@@ -104,7 +104,7 @@ export class StudentsService {
 
   // 作用：创建学员并刷新课程 student_count，确保课程统计和学员选课关系同步。
 
-  async create(body: Record<string, unknown>) {
+  async create(body: CreateStudentDto) {
     const payload = normalizeStudentPayload(body);
     if ('error' in payload) fail(400, payload.error);
     if (await this.studentRepository.findOneBy({ student_no: payload.student_no })) {
@@ -122,7 +122,7 @@ export class StudentsService {
 
   // 作用：更新学员资料和选课关系，未传字段沿用原值，并同步刷新课程人数。
 
-  async update(id: string, body: Record<string, unknown>) {
+  async update(id: string, body: UpdateStudentDto) {
     const studentId = parsePositiveIntId(id, '学生不存在');
     const existing = await this.studentRepository.findOneBy({ id: studentId });
     if (!existing) fail(404, '学生不存在');
@@ -210,7 +210,7 @@ function normalizeCourseIds(value: unknown): number[] | null {
 }
 
 // 作用：集中校验学员创建/编辑载荷，保证 service 主流程更清晰。
-function normalizeStudentPayload(body: Record<string, unknown>): StudentPayload {
+function normalizeStudentPayload(body: Partial<CreateStudentDto & UpdateStudentDto>): StudentPayload {
   const name = normalizeText(body.name);
   const studentNo = normalizeText(body.student_no);
   if (!name || !studentNo) return { error: '学生姓名和学号不能为空' } as const;

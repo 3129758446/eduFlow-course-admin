@@ -6,6 +6,12 @@ import { fail } from '../common/api.exception';
 import { parsePositiveIntId } from '../common/id.util';
 import { formatLocalDateTime } from '../database/date.util';
 import { LearningSummaryEntity } from '../database/entities';
+import { CreateSummaryDto, SummaryListQueryDto, UpdateSummaryDto } from './dto/summary.dto';
+
+type SummaryPayloadInput = {
+  title?: unknown;
+  content?: unknown;
+};
 
 @Injectable()
 export class SummaryService {
@@ -16,7 +22,7 @@ export class SummaryService {
 
   // 作用：分页查询当前用户自己的学习总结，支持标题/内容关键词搜索。
 
-  async list(userId: number, query: Record<string, string>) {
+  async list(userId: number, query: SummaryListQueryDto) {
     const page = Math.max(Number(query.page) || 1, 1);
     const pageSize = Math.min(Math.max(Number(query.pageSize) || 10, 1), 50);
     const keyword = String(query.keyword ?? '').trim();
@@ -67,7 +73,7 @@ export class SummaryService {
 
   // 作用：为当前用户创建学习总结，内容可包含上传图片返回的 Markdown URL。
 
-  async create(userId: number, body: Record<string, unknown>) {
+  async create(userId: number, body: CreateSummaryDto) {
     const payload = parseSummaryPayload(body);
     const summary = await this.summaryRepository.save(this.summaryRepository.create({
       user_id: userId,
@@ -79,7 +85,7 @@ export class SummaryService {
 
   // 作用：更新当前用户自己的总结，未传字段沿用原值。
 
-  async update(id: string, userId: number, body: Record<string, unknown>) {
+  async update(id: string, userId: number, body: UpdateSummaryDto) {
     const summaryId = parsePositiveIntId(id, '学习总结不存在');
     const existing = await this.summaryRepository.findOneBy({ id: summaryId, user_id: userId });
     if (!existing) fail(404, '学习总结不存在');
@@ -100,7 +106,7 @@ export class SummaryService {
 }
 
 // 作用：统一校验学习总结标题和内容，保证创建/编辑规则一致。
-function parseSummaryPayload(body: Record<string, unknown>) {
+function parseSummaryPayload(body: SummaryPayloadInput) {
   const title = String(body?.title ?? '').trim();
   const content = String(body?.content ?? '').trim();
   if (!title) fail(400, '标题不能为空');

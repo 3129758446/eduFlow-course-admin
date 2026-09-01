@@ -252,6 +252,10 @@ Vite 开发代理（`client/vite.config.ts`）：`/api` → `http://localhost:30
 - 新建普通账号初始密码统一为 `123456`，不能创建或分配 `admin` 角色
 - 课程状态切换用 `PATCH /api/courses/:id/status`，不经过完整 update
 
+- `server-nest` 新增或修改接口时必须先定义 DTO，并通过全局 `ValidationPipe` 做基础入参校验；校验失败仍需保持 `{ code, msg, data }` 旧响应格式
+- DTO 只处理字段形态和类型转换，涉及数据库、权限、重复性和所有权的业务校验继续放在 Service
+- 路由 `id` 暂不使用 Nest 内置 `ParseIntPipe`，继续通过 `parsePositiveIntId()` 保持旧接口非法 ID 的 404 行为
+
 ## 后端切换约定
 
 根目录 `docker-compose.yml` 默认构建 `./server-nest`，镜像名为 `eduflow-course-admin-server-nest`。为了保持前端 Nginx 代理稳定，compose 服务名仍然叫 `server`。

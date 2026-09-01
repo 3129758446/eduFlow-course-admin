@@ -5,6 +5,7 @@ import { existsSync, createReadStream } from 'node:fs';
 import { extname, join, resolve } from 'node:path';
 import { AppModule } from './app.module';
 import { ApiExceptionFilter } from './common/api-exception.filter';
+import { createValidationPipe } from './common/validation.pipe';
 
 const CLIENT_DIST_ROOT = resolve(process.env.CLIENT_DIST_ROOT || join(process.cwd(), '../client/dist'));
 const MIME_TYPES: Record<string, string> = {
@@ -28,6 +29,7 @@ async function bootstrap() {
   // 前端 Axios 使用 /api 相对路径，本地调试和 Docker 代理场景都保留跨域凭证兼容。
   app.enableCors({ credentials: true });
   app.useGlobalFilters(new ApiExceptionFilter());
+  app.useGlobalPipes(createValidationPipe());
 
   if (process.env.SERVE_STATIC !== 'false') {
     // 本地开发可由 NestJS 兼容旧 Koa 的 client/dist 静态托管；Docker 中默认交给 Nginx，所以可用环境变量关闭。

@@ -5,6 +5,7 @@ import { ok } from '../common/api-response';
 import { JwtAuthGuard } from './auth.guard';
 import { JwtUser } from './auth.types';
 import { AuthService } from './auth.service';
+import { ChangePasswordDto, LoginDto } from './dto/auth.dto';
 
 interface AuthedRequest extends Request {
   user: JwtUser;
@@ -18,7 +19,7 @@ export class AuthController {
 
   @Post('login')
   @HttpCode(200)
-  async login(@Body() body: { username?: string; password?: string }) {
+  async login(@Body() body: LoginDto) {
     return ok(await this.authService.login(body));
   }
 
@@ -34,7 +35,7 @@ export class AuthController {
 
   @Patch('password')
   @UseGuards(JwtAuthGuard)
-  async password(@Req() req: AuthedRequest, @Body() body: { oldPassword?: string; newPassword?: string }) {
+  async password(@Req() req: AuthedRequest, @Body() body: ChangePasswordDto) {
     await this.authService.changePassword(req.user.id, body);
     return ok(null, '密码修改成功');
   }

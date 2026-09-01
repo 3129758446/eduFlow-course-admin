@@ -8,6 +8,7 @@ import { fail } from '../common/api.exception';
 import { UserEntity } from '../database/entities';
 import { PermissionService } from '../permissions/permission.service';
 import { JWT_SECRET } from './auth.guard';
+import { ChangePasswordDto, LoginDto } from './dto/auth.dto';
 
 @Injectable()
 export class AuthService {
@@ -19,7 +20,7 @@ export class AuthService {
 
   // 作用：完成账号密码登录，签发 JWT，并返回前端初始化菜单/路由/按钮所需的权限集合。
 
-  async login(body: { username?: string; password?: string }) {
+  async login(body: LoginDto) {
     const { username, password } = body;
     if (!username || !password) fail(400, '请输入用户名和密码');
 
@@ -57,7 +58,7 @@ export class AuthService {
 
   // 作用：只允许当前登录用户修改自己的密码，避免通过传入 userId 越权改密。
 
-  async changePassword(userId: number, body: { oldPassword?: string; newPassword?: string }) {
+  async changePassword(userId: number, body: ChangePasswordDto) {
     const oldPassword = String(body?.oldPassword ?? '');
     const newPassword = String(body?.newPassword ?? '');
     if (!oldPassword || !newPassword) fail(400, '原密码和新密码不能为空');

@@ -7,6 +7,7 @@ import { PermissionsGuard, RequirePermission } from '../auth/permissions.guard';
 import { ok } from '../common/api-response';
 import { PERMISSIONS } from '../permissions/permissions.constants';
 import { SummaryService } from './summary.service';
+import { CreateSummaryDto, SummaryListQueryDto, UpdateSummaryDto } from './dto/summary.dto';
 
 interface AuthedRequest extends Request {
   user: JwtUser;
@@ -21,7 +22,7 @@ export class SummaryController {
 
   @Get()
   @RequirePermission(PERMISSIONS.SUMMARY_VIEW)
-  async list(@Req() req: AuthedRequest, @Query() query: Record<string, string>) {
+  async list(@Req() req: AuthedRequest, @Query() query: SummaryListQueryDto) {
     return ok(await this.summaryService.list(req.user.id, query));
   }
 
@@ -37,7 +38,7 @@ export class SummaryController {
 
   @Post()
   @RequirePermission(PERMISSIONS.SUMMARY_CREATE)
-  async create(@Req() req: AuthedRequest, @Body() body: Record<string, unknown>, @Res({ passthrough: true }) res: Response) {
+  async create(@Req() req: AuthedRequest, @Body() body: CreateSummaryDto, @Res({ passthrough: true }) res: Response) {
     res.status(201);
     return ok(await this.summaryService.create(req.user.id, body));
   }
@@ -46,7 +47,7 @@ export class SummaryController {
 
   @Put(':id')
   @RequirePermission(PERMISSIONS.SUMMARY_UPDATE)
-  async update(@Req() req: AuthedRequest, @Param('id') id: string, @Body() body: Record<string, unknown>) {
+  async update(@Req() req: AuthedRequest, @Param('id') id: string, @Body() body: UpdateSummaryDto) {
     return ok(await this.summaryService.update(id, req.user.id, body));
   }
 
