@@ -137,18 +137,14 @@ export function fetchClasses() {
 
 // 校验学生学号是否唯一
 export function checkStudentNoUnique(studentNo: string, excludeId?: number) {
-  return fetchStudents({
-    keyword: studentNo,
-    className: '',
-    status: '',
-    page: 1,
-    pageSize: 1000,
-  }).then((result) => {
-    const duplicated = result.list.some(
-      (student) => student.student_no === studentNo && student.id !== excludeId,
-    );
-    return { unique: !duplicated };
-  });
+  const search = new URLSearchParams();
+  search.set('student_no', studentNo);
+  if (excludeId !== undefined && excludeId !== null) {
+    search.set('excludeId', String(excludeId));
+  }
+
+  // 学号唯一性是精确校验，走后端专用接口，避免复用分页列表时被分页 DTO 误拦截。
+  return request<{ unique: boolean }>({ url: `/students/check-no?${search.toString()}` });
 }
 
 // 获取学生详情

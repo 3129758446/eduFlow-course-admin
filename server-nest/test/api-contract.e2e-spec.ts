@@ -527,6 +527,12 @@ describe('NestJS API contract compatible with the Koa server', () => {
       .expect(200);
     expect(checkNo.body.data).toEqual({ unique: false });
 
+    const checkNoWithLegacyEmptyPagination = await request(app.getHttpServer())
+      .get(`/api/students/check-no?student_no=${studentNo}&page=undefined&pageSize=undefined`)
+      .set('Authorization', `Bearer ${adminToken}`)
+      .expect(200);
+    expect(checkNoWithLegacyEmptyPagination.body.data).toEqual({ unique: false });
+
     const filtered = await request(app.getHttpServer())
       .get(`/api/students?className=${encodeURIComponent('迁移测试班')}&courseId=${courseId}&page=1&pageSize=10`)
       .set('Authorization', `Bearer ${adminToken}`)
