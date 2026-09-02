@@ -93,6 +93,7 @@ eduFlow-course-admin/
   server-nest/            # 默认 NestJS 后端（独立的 package.json）
     src/
       auth/               # 登录、用户信息和密码接口
+      course-categories/  # 课程分类字典管理接口
       courses/            # 课程管理接口
       database/           # TypeORM 配置、Entity、Migration、首次初始化和日期工具
       dashboard/          # 数据看板接口
@@ -146,7 +147,9 @@ React Router v7，`createBrowserRouter`：
 - **导出 `request<T>()`**：自动解包 `response.data.data`，返回类型为 `T`
 - 所有后端 API 响应格式：`{ code: number, msg: string, data: T }`
 
-`client/src/api.ts`：所有 API 函数集中定义，按模块分组（auth / dashboard / courses / students / summary / system）。列表查询用 `URLSearchParams` 构建，图片上传用 `FormData`。
+`client/src/api.ts`：所有 API 函数集中定义，按模块分组（auth / dashboard / courses / course-categories / students / summary / system）。列表查询用 `URLSearchParams` 构建，图片上传用 `FormData`。
+
+前后端接口契约维护在 `server-nest/docs/Client 与 server-nest 接口协议文档.md`。新增或修改接口时，需要同步更新 `client/src/api.ts`、`client/src/types.ts`、Nest Controller/DTO、契约测试和这份协议文档。
 
 Vite 开发代理（`client/vite.config.ts`）：`/api` → `http://localhost:3000`。
 
@@ -214,6 +217,7 @@ Vite 开发代理（`client/vite.config.ts`）：`/api` → `http://localhost:30
 - `server-nest/src/database/typeorm.config.ts`：读取环境变量、创建 MySQL 数据库、生成 TypeORM 配置。
 - `server-nest/src/database/entities/`：课程、学生、用户、角色、权限、学习总结等实体定义，是业务数据结构的代码入口。
 - `server-nest/src/database/migrations/1788134400000-create-initial-tables.ts`：创建初始表、索引和外键；迁移文件名使用时间戳保证 TypeORM 执行顺序。
+- `course_categories` 使用 UUID 字符串主键；`courses.category_id` 是可置空外键，`courses.category` 保留分类名称快照用于兜底展示，分类课程数由 `course_categories.course_count` 写时维护。
 - `server-nest/src/database/database.init.ts`：首次启动初始化系统默认角色、权限、角色权限映射和默认账号，仅在数据库缺少对应数据时补齐，不覆盖已有业务数据。
 - `server-nest/src/database/date.util.ts`：统一本地日期和本地时间格式，避免接口返回 UTC 偏移导致日期错位。
 - `server-nest/src/database/recent-learning-activity.service.ts`：近 7 天学习活跃度数据库暂无真实行为表时继续按当前逻辑每日补齐一次，并保存在数据层内。
@@ -251,6 +255,8 @@ Vite 开发代理（`client/vite.config.ts`）：`/api` → `http://localhost:30
 - 不要恢复 `server-nest/src/database/database.service.ts` 或 `database.seeder.ts` 这类旧式集中初始化文件；新增表结构走 migration，新增系统默认数据走 `database.init.ts`
 - 新建普通账号初始密码统一为 `123456`，不能创建或分配 `admin` 角色
 - 课程状态切换用 `PATCH /api/courses/:id/status`，不经过完整 update
+- 课程分类管理接口复用课程编辑权限：查询需要 `courses:view`，新增、编辑、删除需要 `courses:update`
+- 课程分类删除在业务层不允许删除已有课程的分类；数据库外键仍使用 `ON DELETE SET NULL` 作为直接数据库操作时的兜底保护
 
 - `server-nest` 新增或修改接口时必须先定义 DTO，并通过全局 `ValidationPipe` 做基础入参校验；校验失败仍需保持 `{ code, msg, data }` 旧响应格式
 - DTO 只处理字段形态和类型转换，涉及数据库、权限、重复性和所有权的业务校验继续放在 Service
