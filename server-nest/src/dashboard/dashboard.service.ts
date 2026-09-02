@@ -2,7 +2,7 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { CourseEntity, StudentEntity } from '../database/entities';
+import { CourseCategoryEntity, CourseEntity, StudentEntity } from '../database/entities';
 import { RecentLearningActivityService } from '../database/recent-learning-activity.service';
 
 @Injectable()
@@ -10,6 +10,8 @@ export class DashboardService {
   constructor(
     @InjectRepository(CourseEntity)
     private readonly courseRepository: Repository<CourseEntity>,
+    @InjectRepository(CourseCategoryEntity)
+    private readonly courseCategoryRepository: Repository<CourseCategoryEntity>,
     @InjectRepository(StudentEntity)
     private readonly studentRepository: Repository<StudentEntity>,
     private readonly recentLearningActivityService: RecentLearningActivityService,
@@ -39,12 +41,11 @@ export class DashboardService {
       { name: '活跃学生', value: activeStudents },
       { name: '非活跃学生', value: totalStudents - activeStudents },
     ];
-    const categoryRows = await this.courseRepository
-      .createQueryBuilder('course')
-      .select('course.category', 'name')
-      .addSelect('COUNT(*)', 'value')
-      .where("course.category != ''")
-      .groupBy('course.category')
+    const categoryRows = await this.courseCategoryRepository
+      .createQueryBuilder('category')
+      .select('category.name', 'name')
+      .addSelect('category.course_count', 'value')
+      .where('category.course_count > 0')
       .orderBy('value', 'DESC')
       .getRawMany();
     const categoryDist = categoryRows.map((row: { name: string; value: number | string }) => ({

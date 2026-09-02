@@ -11,6 +11,7 @@
 */
 import type {
   Course,
+  CourseCategory,
   CourseFormValue,
   CourseListResponse,
   CourseQuery,
@@ -30,6 +31,26 @@ import type {
   User,
 } from './types';
 import { request } from './utils/request';
+
+const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+function isUuid(value: unknown) {
+  return typeof value === 'string' && UUID_PATTERN.test(value);
+}
+
+function normalizeCoursePayload(payload: CourseFormValue) {
+  const data = { ...payload };
+  if (Object.prototype.hasOwnProperty.call(data, 'category_id')) {
+    const categoryId = data.category_id;
+    if (categoryId === undefined || categoryId === null || categoryId === '') {
+      data.category_id = null;
+    } else if (!isUuid(categoryId)) {
+      // 不把异常分类值静默转成 null，避免一次保存误清空课程分类外键。
+      throw new Error('课程分类不合法');
+    }
+  }
+  return data;
+}
 
 // 登录
 export function login(params: { username: string; password: string }) {
@@ -68,15 +89,46 @@ export function fetchCourses(query: Partial<CourseQuery>) {
   // 过滤空值
   Object.entries(query).forEach(([key, value]) => {
     if (value !== '' && value !== undefined && value !== null) {
-      search.set(key, String(value)); 
+      if (key === 'categoryId' && !isUuid(value)) {
+        return;
+      }
+      search.set(key, String(value));
     }
   });
   return request<CourseListResponse>({ url: `/courses?${search.toString()}` });
 }
 
 // 获取课程分类
-export function fetchCourseCategories() {
-  return request<string[]>({ url: '/courses/categories' });
+export function fetchCourseCategories(keyword = '') {
+  const search = new URLSearchParams();
+  if (keyword.trim()) {
+    search.set('keyword', keyword.trim());
+  }
+  const queryString = search.toString();
+  return request<CourseCategory[]>({ url: `/course-categories${queryString ? `?${queryString}` : ''}` });
+}
+
+export function createCourseCategory(payload: { name: string }) {
+  return request<CourseCategory>({
+    url: '/course-categories',
+    method: 'POST',
+    data: payload,
+  });
+}
+
+export function updateCourseCategory(id: string, payload: { name: string }) {
+  return request<CourseCategory>({
+    url: `/course-categories/${id}`,
+    method: 'PUT',
+    data: payload,
+  });
+}
+
+export function deleteCourseCategory(id: string) {
+  return request<null>({
+    url: `/course-categories/${id}`,
+    method: 'DELETE',
+  });
 }
 
 // 获取课程详情
@@ -86,19 +138,21 @@ export function fetchCourseDetail(id: number) {
 
 // 创建课程
 export function createCourse(payload: CourseFormValue) {
+  const data = normalizeCoursePayload(payload);
   return request<Course>({
     url: '/courses',
     method: 'POST',
-    data: payload,
+    data,
   });
 }
 
 // 更新课程
 export function updateCourse(id: number, payload: CourseFormValue) {
+  const data = normalizeCoursePayload(payload);
   return request<Course>({
     url: `/courses/${id}`,
     method: 'PUT',
-    data: payload,
+    data,
   });
 }
 

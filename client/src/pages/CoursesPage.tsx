@@ -6,6 +6,7 @@
 学习要点：删除后依据总数与页码计算 pageAfterDelete，避免空页
 */
 import {
+  AppstoreOutlined,
   DeleteOutlined,
   EditOutlined,
   PlusOutlined,
@@ -23,22 +24,32 @@ import {
   Space,
   Table,
   Tag,
+  Tooltip,
 } from "antd";
 import type { ColumnsType } from "antd/es/table";
-import { useCallback, useEffect, useMemo } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useShallow } from "zustand/react/shallow";
 import { COURSE_STATUS_TEXT, DEFAULT_COURSE_FORM } from "../constants";
 import { Permission } from "../components/Permission";
 import { Card, PaginationBar } from "../components/ui";
+import {
+  createCourseCategory,
+  deleteCourseCategory,
+  updateCourseCategory,
+} from "../api";
 import { PERMISSIONS } from "../permissions";
 import { useAuthStore } from "../stores/auth-store";
 import { useCourseStore } from "../stores/course-store";
-import type { Course, CourseFormValue } from "../types";
-import { parseMaybeChinese } from "../utils/text";
+import type { Course, CourseCategory, CourseFormValue } from "../types";
+import { appErrorMessage, parseMaybeChinese } from "../utils/text";
 
 // 课程管理页面
 export function CoursesPage() {
   const [form] = Form.useForm<CourseFormValue>();
+  const [categoryForm] = Form.useForm<{ name: string }>();
+  const [categoryModalOpen, setCategoryModalOpen] = useState(false);
+  const [editingCategory, setEditingCategory] = useState<CourseCategory | null>(null);
+  const [categorySubmitting, setCategorySubmitting] = useState(false);
   const setGlobalError = useAuthStore((state) => state.setGlobalError);
   const canOperateCourse = useAuthStore((state) =>
     state.hasAnyPermission([
@@ -57,6 +68,7 @@ export function CoursesPage() {
     formLoading,
     setDraftKeyword,
     initializePage,
+    loadCategories,
     updateQuery,
     resetFilters,
     openCreate,
@@ -77,6 +89,7 @@ export function CoursesPage() {
       formLoading: state.formLoading,
       setDraftKeyword: state.setDraftKeyword,
       initializePage: state.initializePage,
+      loadCategories: state.loadCategories,
       updateQuery: state.updateQuery,
       resetFilters: state.resetFilters,
       openCreate: state.openCreate,
@@ -118,6 +131,7 @@ export function CoursesPage() {
       description: detail.description,
       instructor: detail.instructor,
       category: detail.category,
+      category_id: detail.category_id,
       status: detail.status,
       lesson_count: detail.lesson_count,
     });
@@ -134,6 +148,63 @@ export function CoursesPage() {
       return;
     }
   };
+
+  const handleOpenCategoryModal = useCallback(() => {
+    setCategoryModalOpen(true);
+    setEditingCategory(null);
+    categoryForm.resetFields();
+    void loadCategories();
+  }, [categoryForm, loadCategories]);
+
+  const handleSearchCategory = useCallback(() => {
+    categoryForm.setFields([{ name: "name", errors: [] }]);
+    void loadCategories(String(categoryForm.getFieldValue("name") ?? ""));
+  }, [categoryForm, loadCategories]);
+
+  const handleEditCategory = useCallback((category: CourseCategory) => {
+    setEditingCategory(category);
+    categoryForm.setFieldsValue({ name: parseMaybeChinese(category.name) });
+    categoryForm.setFields([{ name: "name", errors: [] }]);
+  }, [categoryForm]);
+
+  const handleSubmitCategory = useCallback(async () => {
+    try {
+      const values = await categoryForm.validateFields();
+      setCategorySubmitting(true);
+      if (editingCategory) {
+        await updateCourseCategory(editingCategory.id, values);
+      } else {
+        await createCourseCategory(values);
+      }
+      categoryForm.resetFields();
+      setEditingCategory(null);
+      await loadCategories();
+      await updateQuery((prev) => ({ ...prev }));
+    } catch (error) {
+      if (error && typeof error === "object" && "errorFields" in error) {
+        return;
+      }
+      setGlobalError(appErrorMessage(error));
+    } finally {
+      setCategorySubmitting(false);
+    }
+  }, [categoryForm, editingCategory, loadCategories, setGlobalError, updateQuery]);
+
+  const handleDeleteCategory = useCallback(async (category: CourseCategory) => {
+    try {
+      await deleteCourseCategory(category.id);
+      if (editingCategory?.id === category.id) {
+        setEditingCategory(null);
+        categoryForm.resetFields();
+      }
+      await loadCategories(String(categoryForm.getFieldValue("name") ?? ""));
+      if (query.categoryId === category.id) {
+        await updateQuery((prev) => ({ ...prev, categoryId: "", page: 1 }));
+      }
+    } catch (error) {
+      setGlobalError(appErrorMessage(error));
+    }
+  }, [categoryForm, editingCategory, loadCategories, query.categoryId, setGlobalError, updateQuery]);
 
   // 课程列表列配置
   // 包含课程名称、讲师、分类、课时、操作列（编辑/删除/发布）
@@ -307,21 +378,85 @@ export function CoursesPage() {
         : columns.filter((column) => column.key !== "actions"),
     [canOperateCourse, columns],
   );
+  const categoryColumns = useMemo<ColumnsType<CourseCategory>>(
+    () => [
+      {
+        title: "分类名",
+        dataIndex: "name",
+        key: "name",
+        render: (value) => parseMaybeChinese(value || "-"),
+      },
+      {
+        title: "课程数量",
+        dataIndex: "course_count",
+        key: "course_count",
+        width: 120,
+      },
+      {
+        title: "操作",
+        key: "actions",
+        width: 180,
+        render: (_, category) => (
+          <Space size={0}>
+            <Button
+              type="link"
+              className="list-action"
+              icon={<EditOutlined />}
+              onClick={() => handleEditCategory(category)}
+            >
+              编辑
+            </Button>
+            <Popconfirm
+              title={`确认删除课程分类“${parseMaybeChinese(category.name)}”吗？`}
+              disabled={category.course_count > 0}
+              onConfirm={() => handleDeleteCategory(category)}
+              okText="确认"
+              cancelText="取消"
+            >
+              <Tooltip title={category.course_count > 0 ? "已有课程使用，不能删除" : ""}>
+                <Button
+                  danger
+                  type="link"
+                  className="list-action list-action--danger"
+                  disabled={category.course_count > 0}
+                  icon={<DeleteOutlined />}
+                >
+                  删除
+                </Button>
+              </Tooltip>
+            </Popconfirm>
+          </Space>
+        ),
+      },
+    ],
+    [handleDeleteCategory, handleEditCategory],
+  );
 
   return (
     <div className="w-full space-y-6">
       <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
         <h2 className="m-0 text-4xl font-extrabold text-slate-900">课程管理</h2>
-        <Permission code={PERMISSIONS.COURSES_CREATE}>
-          <Button
-            type="primary"
-            icon={<PlusOutlined />}
-            onClick={handleOpenCreate}
-            className="manage-action-button bg-sky-200 text-lg font-bold text-slate-900"
-          >
-            新增课程
-          </Button>
-        </Permission>
+        <Space wrap>
+          <Permission code={PERMISSIONS.COURSES_UPDATE}>
+            <Button
+              icon={<AppstoreOutlined />}
+              onClick={handleOpenCategoryModal}
+              className="manage-action-button text-lg font-bold text-slate-900"
+            >
+              课程分类
+            </Button>
+          </Permission>
+          <Permission code={PERMISSIONS.COURSES_CREATE}>
+            <Button
+              type="primary"
+              icon={<PlusOutlined />}
+              onClick={handleOpenCreate}
+              className="manage-action-button bg-sky-200 text-lg font-bold text-slate-900"
+            >
+              新增课程
+            </Button>
+          </Permission>
+        </Space>
       </div>
 
       <Card title="" className="manage-card">
@@ -364,20 +499,24 @@ export function CoursesPage() {
           />
           <Select
             size="large"
-            value={query.category || undefined}
+            value={query.categoryId || undefined}
             placeholder="全部分类"
             allowClear
             className="w-45! rounded-3.5! border-4! border-slate-300!"
+            onOpenChange={(open) => {
+              if (open) void loadCategories();
+            }}
             onChange={(value) =>
               void updateQuery((prev) => ({
                 ...prev,
-                category: value ?? "",
+                categoryId: value ?? "",
+                category: "",
                 page: 1,
               }))
             }
             options={categories.map((category) => ({
-              value: category,
-              label: parseMaybeChinese(category),
+              value: category.id,
+              label: parseMaybeChinese(category.name),
             }))}
           />
           <Button
@@ -431,6 +570,86 @@ export function CoursesPage() {
       </Card>
 
       <Modal
+        open={categoryModalOpen}
+        title="课程分类"
+        footer={null}
+        onCancel={() => {
+          if (!categorySubmitting) {
+            setCategoryModalOpen(false);
+            setEditingCategory(null);
+            categoryForm.resetFields();
+            // 弹窗查询复用 categories 状态，关闭时恢复全量，避免污染课程筛选/表单下拉。
+            void loadCategories();
+          }
+        }}
+        centered
+        destroyOnHidden
+        className="manage-modal"
+        width={720}
+      >
+        <Form
+          form={categoryForm}
+          layout="inline"
+          className="mb-5 flex! gap-3 pt-4"
+        >
+          <Form.Item
+            name="name"
+            className="min-w-0 flex-1"
+            validateTrigger={[]}
+            rules={[{ required: true, message: "请输入分类名称" }]}
+          >
+            <Input
+              placeholder="请输入分类名称"
+              maxLength={100}
+              onPressEnter={handleSearchCategory}
+            />
+          </Form.Item>
+          <Form.Item className="m-0!">
+            <Button htmlType="button" icon={<SearchOutlined />} onClick={handleSearchCategory}>
+              查询
+            </Button>
+          </Form.Item>
+          <Form.Item className="m-0!">
+            <Button
+              type="primary"
+              htmlType="button"
+              onClick={handleSubmitCategory}
+              loading={categorySubmitting}
+              icon={editingCategory ? <EditOutlined /> : <PlusOutlined />}
+            >
+              {editingCategory ? "保存" : "新增"}
+            </Button>
+          </Form.Item>
+          {editingCategory ? (
+            <Form.Item className="m-0!">
+              <Button
+                onClick={() => {
+                  setEditingCategory(null);
+                  categoryForm.resetFields();
+                }}
+              >
+                取消
+              </Button>
+            </Form.Item>
+          ) : null}
+        </Form>
+        <Table
+          rowKey="id"
+          dataSource={categories}
+          columns={categoryColumns}
+          pagination={{
+            pageSize: 10,
+            size: "small",
+            showSizeChanger: false,
+            showTotal: (total) => `共 ${total} 项`,
+          }}
+          scroll={{ y: 500 }}
+          size="middle"
+          locale={{ emptyText: "暂无课程分类" }}
+        />
+      </Modal>
+
+      <Modal
         open={formOpen}
         title={editingId ? "编辑课程" : "新增课程"}
         onCancel={() => !formLoading && closeForm()}
@@ -468,13 +687,16 @@ export function CoursesPage() {
             <Form.Item label="讲师" name="instructor">
               <Input placeholder="请输入讲师姓名" />
             </Form.Item>
-            <Form.Item label="分类" name="category">
+            <Form.Item label="分类" name="category_id">
               <Select
                 className="manage-form-select w-full! rounded-3.5! border-4! "
                 placeholder="请选择课程分类"
+                onOpenChange={(open) => {
+                  if (open) void loadCategories();
+                }}
                 options={categories.map((category) => ({
-                  value: category,
-                  label: parseMaybeChinese(category),
+                  value: category.id,
+                  label: parseMaybeChinese(category.name),
                 }))}
               />
             </Form.Item>

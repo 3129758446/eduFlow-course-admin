@@ -20,6 +20,7 @@ import {
 } from "../api";
 import type {
   Course,
+  CourseCategory,
   CourseFormValue,
   CourseListResponse,
   CourseQuery,
@@ -33,6 +34,7 @@ const defaultCourseQuery: CourseQuery = {
   keyword: "",
   status: "",
   category: "",
+  categoryId: "",
   page: 1,
   pageSize: 10,
   sortField: "",
@@ -42,7 +44,7 @@ const defaultCourseQuery: CourseQuery = {
 type CourseStore = {
   data: CourseListResponse | null; // 课程列表数据
   loading: boolean; // 列表数据加载状态
-  categories: string[]; // 课程分类列表
+  categories: CourseCategory[]; // 课程分类列表
   query: CourseQuery; // 课程查询参数
   draftKeyword: string; // 草稿关键词
   formOpen: boolean; // 表单弹窗是否打开
@@ -51,7 +53,7 @@ type CourseStore = {
   setDraftKeyword: (value: string) => void; // 设置草稿关键词
   initializePage: () => Promise<void>; // 初始化页面数据
   refreshList: () => Promise<void>; // 刷新课程列表
-  loadCategories: () => Promise<void>; // 加载课程分类列表
+  loadCategories: (keyword?: string) => Promise<void>; // 加载课程分类列表
   updateQuery: (updater: (prev: CourseQuery) => CourseQuery) => Promise<void>; // 更新查询查询参数
   resetFilters: () => Promise<void>; // 重置筛选参数
   openCreate: () => void; // 打开创建课程表单
@@ -91,9 +93,9 @@ export const useCourseStore = create<CourseStore>((set, get) => ({
     }
   },
   // 加载课程分类列表
-  loadCategories: async () => {
+  loadCategories: async (keyword = "") => {
     try {
-      const categories = await fetchCourseCategories();
+      const categories = await fetchCourseCategories(keyword);
       set({ categories });
     } catch (error) {
       setGlobalError(error);
@@ -174,6 +176,7 @@ export const useCourseStore = create<CourseStore>((set, get) => ({
         formLoading: false,
       });
       await get().refreshList();
+      await get().loadCategories();
     } catch (error) {
       set({ formLoading: false });
       setGlobalError(error);
@@ -201,6 +204,7 @@ export const useCourseStore = create<CourseStore>((set, get) => ({
       }
 
       await get().refreshList();
+      await get().loadCategories();
     } catch (error) {
       setGlobalError(error);
     }

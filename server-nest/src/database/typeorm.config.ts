@@ -4,6 +4,10 @@ import mysql from 'mysql2/promise';
 import { DataSource, DataSourceOptions } from 'typeorm';
 import { DATABASE_ENTITIES } from './entities';
 import { CreateInitialTables1788134400000 } from './migrations/1788134400000-create-initial-tables';
+import { AddCourseCategories1788220800000 } from './migrations/1788220800000-add-course-categories';
+import { AddCourseCategoryCount1788307200000 } from './migrations/1788307200000-add-course-category-count';
+import { NormalizeCourseCategoryUuid1788393600000 } from './migrations/1788393600000-normalize-course-category-uuid';
+import { NormalizeCourseCategoryCreatedAtPrecision1788566400000 } from './migrations/1788566400000-normalize-course-category-created-at-precision';
 
 // 文件作用：集中生成 TypeORM 和 MySQL 连接配置，并在连接前确保目标数据库存在。
 export interface MysqlConfig {
@@ -39,7 +43,13 @@ export function createTypeOrmOptions(): TypeOrmModuleOptions {
     database: config.database,
     charset: 'utf8mb4',
     entities: DATABASE_ENTITIES,
-    migrations: [CreateInitialTables1788134400000],
+    migrations: [
+      CreateInitialTables1788134400000,
+      AddCourseCategories1788220800000,
+      AddCourseCategoryCount1788307200000,
+      NormalizeCourseCategoryUuid1788393600000,
+      NormalizeCourseCategoryCreatedAtPrecision1788566400000,
+    ],
     migrationsTableName: 'typeorm_migrations',
     synchronize: false,
     migrationsRun: shouldRunMigrations(),

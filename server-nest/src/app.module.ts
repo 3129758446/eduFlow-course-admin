@@ -4,6 +4,7 @@ import { APP_FILTER } from '@nestjs/core';
 import { ApiExceptionFilter } from './common/api-exception.filter';
 import { AuthModule } from './auth/auth.module';
 import { CoursesModule } from './courses/courses.module';
+import { CourseCategoriesModule } from './course-categories/course-categories.module';
 import { DashboardModule } from './dashboard/dashboard.module';
 import { DatabaseModule } from './database/database.module';
 import { PermissionsModule } from './permissions/permissions.module';
@@ -20,6 +21,7 @@ import { UploadModule } from './upload/upload.module';
     PermissionsModule,
     AuthModule,
     DashboardModule,
+    CourseCategoriesModule,
     CoursesModule,
     StudentsModule,
     SummaryModule,

@@ -48,11 +48,18 @@ export type Course = {
   instructor: string;
   cover: string;
   category: string;
+  category_id?: string | null;
   status: string;
   student_count: number;
   lesson_count: number;
   created_at: string;
   updated_at: string;
+};
+
+export type CourseCategory = {
+  id: string;
+  name: string;
+  course_count: number;
 };
 
 export type CourseListResponse = {
@@ -67,6 +74,7 @@ export type CourseQuery = {
   keyword: string;
   status: string;
   category: string;
+  categoryId: string;
   page: number;
   pageSize: number;
   sortField: string;
@@ -77,7 +85,8 @@ export type CourseFormValue = {
   name: string;
   description: string;
   instructor: string;
-  category: string;
+  category?: string;
+  category_id: string | null;
   status: string;
   lesson_count: number;
 };

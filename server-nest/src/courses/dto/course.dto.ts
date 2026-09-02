@@ -1,6 +1,6 @@
 // 文件作用：课程模块请求 DTO，约束课程列表查询、新增和编辑入参。
 import { Type } from 'class-transformer';
-import { IsIn, IsInt, IsNotEmpty, IsOptional, IsString, Min } from 'class-validator';
+import { IsIn, IsInt, IsNotEmpty, IsOptional, IsString, IsUUID, Min } from 'class-validator';
 import { PaginationQueryDto } from '../../common/dto/pagination-query.dto';
 import { TrimString } from '../../common/dto/string-transform';
 
@@ -23,6 +23,11 @@ export class CourseListQueryDto extends PaginationQueryDto {
   @TrimString()
   @IsString({ message: '课程分类不合法' })
   category?: string;
+
+  @IsOptional()
+  @TrimString()
+  @IsUUID('all', { message: '课程分类不合法' })
+  categoryId?: string;
 
   @IsOptional()
   @TrimString()
@@ -58,6 +63,11 @@ export class CreateCourseDto {
 
   @IsOptional()
   @TrimString()
+  @IsUUID('all', { message: '课程分类不合法' })
+  category_id?: string | null;
+
+  @IsOptional()
+  @TrimString()
   @IsIn(COURSE_STATUS, { message: '课程状态不合法' })
   status?: string;
 
@@ -89,6 +99,11 @@ export class UpdateCourseDto {
   @TrimString()
   @IsString({ message: '课程分类不合法' })
   category?: string;
+
+  @IsOptional()
+  @TrimString()
+  @IsUUID('all', { message: '课程分类不合法' })
+  category_id?: string | null;
 
   @IsOptional()
   @TrimString()

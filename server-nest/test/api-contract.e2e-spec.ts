@@ -12,10 +12,16 @@ import { AppModule } from '../src/app.module';
 import { createValidationPipe } from '../src/common/validation.pipe';
 
 async function seedApiContractFixtures(dataSource: DataSource) {
+  const categoryId = randomUUID();
   await dataSource.query(
-    `INSERT INTO courses (name, description, instructor, category, status, student_count, lesson_count)
-     VALUES (?, ?, ?, ?, ?, ?, ?)`,
-    ['Contract Course', 'Contract test course', 'Contract Teacher', 'Test', 'published', 1, 3],
+    `INSERT INTO course_categories (id, name, course_count) VALUES (?, ?, ?)`,
+    [categoryId, 'Test', 1],
+  );
+
+  await dataSource.query(
+    `INSERT INTO courses (name, description, instructor, category, category_id, status, student_count, lesson_count)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+    ['Contract Course', 'Contract test course', 'Contract Teacher', 'Test', categoryId, 'published', 1, 3],
   );
   const [{ id: courseId }] = await dataSource.query('SELECT id FROM courses ORDER BY id ASC LIMIT 1');
 
@@ -57,6 +63,10 @@ describe('NestJS API contract compatible with the Koa server', () => {
     app.useGlobalPipes(createValidationPipe());
     await app.init();
     await seedApiContractFixtures(app.get(DataSource));
+    const adminLogin = await request(app.getHttpServer())
+      .post('/api/auth/login')
+      .send({ username: 'admin', password: 'admin123' });
+    adminToken = adminLogin.body.data.token;
   });
 
   afterAll(async () => {
@@ -371,6 +381,133 @@ describe('NestJS API contract compatible with the Koa server', () => {
       .set('Authorization', `Bearer ${adminToken}`)
       .expect(200);
     expect(deleted.body).toEqual({ code: 0, msg: '删除成功', data: null });
+  });
+
+  it('manages course categories and keeps course counts in sync', async () => {
+    const categoryNameA = `Category A ${Date.now()}`;
+    const categoryNameB = `Category B ${Date.now()}`;
+
+    const categoryA = await request(app.getHttpServer())
+      .post('/api/course-categories')
+      .set('Authorization', `Bearer ${adminToken}`)
+      .send({ name: categoryNameA })
+      .expect(201);
+    expect(categoryA.body.data).toEqual(expect.objectContaining({
+      id: expect.stringMatching(/^[0-9a-f-]{36}$/),
+      name: categoryNameA,
+      course_count: 0,
+    }));
+
+    const duplicate = await request(app.getHttpServer())
+      .post('/api/course-categories')
+      .set('Authorization', `Bearer ${adminToken}`)
+      .send({ name: categoryNameA })
+      .expect(400);
+    expect(duplicate.body.msg).toBe('课程分类已存在');
+
+    const categoryB = await request(app.getHttpServer())
+      .post('/api/course-categories')
+      .set('Authorization', `Bearer ${adminToken}`)
+      .send({ name: categoryNameB })
+      .expect(201);
+
+    const createdCourse = await request(app.getHttpServer())
+      .post('/api/courses')
+      .set('Authorization', `Bearer ${adminToken}`)
+      .send({
+        name: `Course with category ${Date.now()}`,
+        category_id: categoryA.body.data.id,
+        lesson_count: 2,
+      })
+      .expect(201);
+    expect(createdCourse.body.data).toEqual(expect.objectContaining({
+      category_id: categoryA.body.data.id,
+      category: categoryNameA,
+    }));
+
+    const afterCreate = await request(app.getHttpServer())
+      .get('/api/course-categories')
+      .set('Authorization', `Bearer ${adminToken}`)
+      .expect(200);
+    expect(afterCreate.body.data).toEqual(expect.arrayContaining([
+      expect.objectContaining({ id: categoryA.body.data.id, course_count: 1 }),
+      expect.objectContaining({ id: categoryB.body.data.id, course_count: 0 }),
+    ]));
+    expect(afterCreate.body.data.findIndex((category) => category.id === categoryB.body.data.id))
+      .toBeLessThan(afterCreate.body.data.findIndex((category) => category.id === categoryA.body.data.id));
+
+    const filteredCategories = await request(app.getHttpServer())
+      .get(`/api/course-categories?keyword=${encodeURIComponent('Category A')}`)
+      .set('Authorization', `Bearer ${adminToken}`)
+      .expect(200);
+    expect(filteredCategories.body.data).toEqual(expect.arrayContaining([
+      expect.objectContaining({ id: categoryA.body.data.id }),
+    ]));
+    expect(filteredCategories.body.data).not.toEqual(expect.arrayContaining([
+      expect.objectContaining({ id: categoryB.body.data.id }),
+    ]));
+
+    const deleteUsed = await request(app.getHttpServer())
+      .delete(`/api/course-categories/${categoryA.body.data.id}`)
+      .set('Authorization', `Bearer ${adminToken}`)
+      .expect(400);
+    expect(deleteUsed.body.msg).toBe('该分类下已有课程，不能删除');
+
+    const renamedCategory = await request(app.getHttpServer())
+      .put(`/api/course-categories/${categoryA.body.data.id}`)
+      .set('Authorization', `Bearer ${adminToken}`)
+      .send({ name: `${categoryNameA} Renamed` })
+      .expect(200);
+    expect(renamedCategory.body.data.name).toBe(`${categoryNameA} Renamed`);
+
+    const courseAfterRename = await request(app.getHttpServer())
+      .get(`/api/courses/${createdCourse.body.data.id}`)
+      .set('Authorization', `Bearer ${adminToken}`)
+      .expect(200);
+    expect(courseAfterRename.body.data.category).toBe(`${categoryNameA} Renamed`);
+
+    await request(app.getHttpServer())
+      .put(`/api/courses/${createdCourse.body.data.id}`)
+      .set('Authorization', `Bearer ${adminToken}`)
+      .send({ category_id: categoryB.body.data.id })
+      .expect(200);
+
+    const legacyCategoryUpdate = await request(app.getHttpServer())
+      .put(`/api/courses/${createdCourse.body.data.id}`)
+      .set('Authorization', `Bearer ${adminToken}`)
+      .send({ category: 'Legacy text should not desync relation' })
+      .expect(200);
+    expect(legacyCategoryUpdate.body.data).toEqual(expect.objectContaining({
+      category_id: categoryB.body.data.id,
+      category: categoryNameB,
+    }));
+
+    const afterMove = await request(app.getHttpServer())
+      .get('/api/course-categories')
+      .set('Authorization', `Bearer ${adminToken}`)
+      .expect(200);
+    expect(afterMove.body.data).toEqual(expect.arrayContaining([
+      expect.objectContaining({ id: categoryA.body.data.id, course_count: 0 }),
+      expect.objectContaining({ id: categoryB.body.data.id, course_count: 1 }),
+    ]));
+
+    await request(app.getHttpServer())
+      .delete(`/api/courses/${createdCourse.body.data.id}`)
+      .set('Authorization', `Bearer ${adminToken}`)
+      .expect(200);
+
+    const afterDeleteCourse = await request(app.getHttpServer())
+      .get('/api/course-categories')
+      .set('Authorization', `Bearer ${adminToken}`)
+      .expect(200);
+    expect(afterDeleteCourse.body.data).toEqual(expect.arrayContaining([
+      expect.objectContaining({ id: categoryB.body.data.id, course_count: 0 }),
+    ]));
+
+    await request(app.getHttpServer())
+      .delete(`/api/course-categories/${categoryA.body.data.id}`)
+      .set('Authorization', `Bearer ${adminToken}`)
+      .expect(200);
   });
 
   it('keeps DTO validation errors in the legacy envelope shape', async () => {

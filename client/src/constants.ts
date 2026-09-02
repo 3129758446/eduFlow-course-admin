@@ -20,6 +20,7 @@ export const DEFAULT_COURSE_FORM: CourseFormValue = {
   description: '',
   instructor: '',
   category: '',
+  category_id: null,
   status: 'draft',
   lesson_count: 0,
 };
