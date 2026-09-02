@@ -4,17 +4,21 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     env_file:
       - .env
     environment:
+      - NODE_ENV=production
       - PORT=3000
       - JWT_SECRET=${JWT_SECRET:-change-me-in-production}
       - SERVE_STATIC=false
       - DATA_ROOT=/app/data
-      # 容器访问宿主机 MySQL 8.0 时，Windows/Mac Docker Desktop 通常使用 host.docker.internal。
-      - MYSQL_HOST=${MYSQL_HOST:-host.docker.internal}
+      # 后端容器访问宿主机 MySQL 时，需要使用 Docker Desktop 提供的 host.docker.internal。
+      - MYSQL_HOST=host.docker.internal
+      - TYPEORM_MIGRATIONS_RUN=${TYPEORM_MIGRATIONS_RUN:-true}
     ports:
       - "3000:3000"
     volumes:
-      # 仅持久化上传文件；业务数据已迁移到本机 MySQL。
+      # 仅持久化上传文件；业务数据仍写入宿主机 MySQL。
       - ./data:/app/data

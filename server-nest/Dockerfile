@@ -1,12 +1,12 @@
 FROM node:22-alpine AS deps
 WORKDIR /app
 
-# deps 阶段保留编译工具，仅用于安装开发依赖中的 SQLite 迁移工具。
+# deps 阶段保留编译工具，用于安装可能带原生扩展的开发依赖。
 RUN sed -i 's/dl-cdn.alpinelinux.org/mirrors.tuna.tsinghua.edu.cn/g' /etc/apk/repositories
 RUN apk add --no-cache python3 make g++
 
 COPY package.json package-lock.json ./
-RUN npm config set registry https://registry.npmmirror.com/ && npm ci
+RUN npm config set registry https://registry.npmmirror.com/ && npm ci --legacy-peer-deps
 
 FROM node:22-alpine AS builder
 WORKDIR /app
@@ -21,7 +21,7 @@ FROM node:22-alpine AS runner
 WORKDIR /app
 
 COPY package.json package-lock.json ./
-RUN npm config set registry https://registry.npmmirror.com/ && npm ci --omit=dev
+RUN npm config set registry https://registry.npmmirror.com/ && npm ci --omit=dev --legacy-peer-deps
 
 COPY --from=builder /app/dist ./dist
 COPY scripts ./scripts
@@ -31,6 +31,7 @@ RUN chmod +x ./docker-entrypoint.sh
 ENV PORT=3000
 ENV DATA_ROOT=/app/data
 ENV SERVE_STATIC=false
+ENV NODE_ENV=production
 EXPOSE 3000
 
 ENTRYPOINT ["./docker-entrypoint.sh"]

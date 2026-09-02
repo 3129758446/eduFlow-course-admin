@@ -3,6 +3,10 @@ dist
 test
 coverage
 .tmp
+.env
+.env.*
+data
+docs
 npm-debug.log
 Dockerfile
 docker-compose.nest.yml
