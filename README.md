@@ -30,6 +30,10 @@ EduFlow 是一个前后端分离的在线课程后台管理系统，覆盖登录
 <img src="./docs/images/image6.png" />
 <img src="./docs/images/image7.png" />
 
+### 权限管理
+<img src="./docs/images/image8.png" />
+
+
 ## 技术栈
 
 **前端**

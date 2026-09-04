@@ -4,6 +4,7 @@
 要点：统一品牌色、圆角、控件尺寸与分页等组件样式，搭配全局 CSS 微调
 */
 import { ConfigProvider, App as AntdApp } from 'antd';
+import zhCN from 'antd/locale/zh_CN';
 import { AppRouterProvider } from './router';
 import 'antd/dist/reset.css';
 import './style/base.css';
@@ -13,6 +14,7 @@ function App() {
   return (
     // 配置主题
     <ConfigProvider
+      locale={zhCN}
       theme={{
         token: {
           colorPrimary: '#5b9cf0',
