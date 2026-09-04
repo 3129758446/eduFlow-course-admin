@@ -2,6 +2,11 @@
 import { ValidationPipe, ValidationError } from '@nestjs/common';
 import { ApiException } from './api.exception';
 
+/*
+whitelist 删除 DTO 中未定义的字段
+forbidNonWhitelisted 出现额外字段直接报错
+transform 自动尝试进行类型转换
+*/
 export function createValidationPipe() {
   return new ValidationPipe({
     transform: true,

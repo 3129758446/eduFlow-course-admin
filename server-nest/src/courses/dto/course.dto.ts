@@ -1,12 +1,13 @@
 // 文件作用：课程模块请求 DTO，约束课程列表查询、新增和编辑入参。
 import { Type } from 'class-transformer';
-import { IsIn, IsInt, IsNotEmpty, IsOptional, IsString, IsUUID, Min } from 'class-validator';
+import { IsIn, IsInt, IsNotEmpty, IsOptional, IsString, Matches, Min } from 'class-validator';
 import { PaginationQueryDto } from '../../common/dto/pagination-query.dto';
 import { TrimString } from '../../common/dto/string-transform';
 
 const COURSE_STATUS = ['draft', 'published'] as const;
 const COURSE_SORT_FIELDS = ['student_count', 'lesson_count', 'created_at', 'name'] as const;
 const SORT_ORDERS = ['ascend', 'descend'] as const;
+const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 export class CourseListQueryDto extends PaginationQueryDto {
   @IsOptional()
@@ -26,7 +27,7 @@ export class CourseListQueryDto extends PaginationQueryDto {
 
   @IsOptional()
   @TrimString()
-  @IsUUID('all', { message: '课程分类不合法' })
+  @Matches(UUID_PATTERN, { message: '课程分类不合法' })
   categoryId?: string;
 
   @IsOptional()
@@ -63,7 +64,7 @@ export class CreateCourseDto {
 
   @IsOptional()
   @TrimString()
-  @IsUUID('all', { message: '课程分类不合法' })
+  @Matches(UUID_PATTERN, { message: '课程分类不合法' })
   category_id?: string | null;
 
   @IsOptional()
@@ -102,7 +103,7 @@ export class UpdateCourseDto {
 
   @IsOptional()
   @TrimString()
-  @IsUUID('all', { message: '课程分类不合法' })
+  @Matches(UUID_PATTERN, { message: '课程分类不合法' })
   category_id?: string | null;
 
   @IsOptional()

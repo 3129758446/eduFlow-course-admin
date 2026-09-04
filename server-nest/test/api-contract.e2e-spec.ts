@@ -510,6 +510,28 @@ describe('NestJS API contract compatible with the Koa server', () => {
       .expect(200);
   });
 
+  it('accepts mysql v1 uuid values in course category filter', async () => {
+    const mysqlUuid = '1a1d0baa-a69e-11f1-8441-00ff9bfbf9b6';
+    await app.get(DataSource).query(
+      `INSERT INTO course_categories (id, name, course_count) VALUES (?, ?, ?)`,
+      [mysqlUuid, `MySQL UUID Category ${Date.now()}`, 1],
+    );
+    await app.get(DataSource).query(
+      `INSERT INTO courses (name, description, instructor, category, category_id, status, student_count, lesson_count)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+      ['MySQL UUID Filter Course', '', '', 'MySQL UUID Category', mysqlUuid, 'published', 0, 1],
+    );
+
+    const response = await request(app.getHttpServer())
+      .get(`/api/courses?categoryId=${mysqlUuid}&page=1&pageSize=10`)
+      .set('Authorization', `Bearer ${adminToken}`)
+      .expect(200);
+
+    expect(response.body.data.list).toEqual(expect.arrayContaining([
+      expect.objectContaining({ category_id: mysqlUuid }),
+    ]));
+  });
+
   it('keeps DTO validation errors in the legacy envelope shape', async () => {
     const response = await request(app.getHttpServer())
       .post('/api/courses')
