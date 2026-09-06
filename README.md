@@ -295,6 +295,8 @@ server image: eduflow-course-admin-server-nest
 
 Docker 中的 NestJS 后端通过 `host.docker.internal:3306` 连接宿主机 MySQL。`./server-nest/data:/app/data` 只持久化上传文件和静态资源，不存放 MySQL 数据。
 
+首次部署前，先将 `server-nest/.env.example` 复制为 `server-nest/.env`，并填写宿主机 MySQL 的用户名、密码和数据库名。Compose 会自动把容器内的 `MYSQL_HOST` 覆盖为 `host.docker.internal`；不要在 Compose 中新增 MySQL 服务。前端容器仅暴露 `80` 端口，Nginx 会将 `/api/*` 转发到同一 Compose 网络内的 NestJS 服务，浏览器不需要直接访问 `3000` 端口。
+
 常用 Docker 命令：
 
 ```bash
