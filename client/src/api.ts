@@ -30,7 +30,7 @@ import type {
   SummaryQuery,
   User,
 } from './types';
-import { request } from './utils/request';
+import { refreshAccessToken, request } from './utils/request';
 
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -64,6 +64,14 @@ export function login(params: { username: string; password: string }) {
 // 获取当前用户信息
 export function getCurrentUser() {
   return request<User>({ url: '/auth/me' });
+}
+
+export function refreshSession() {
+  return refreshAccessToken();
+}
+
+export function logout() {
+  return request<null>({ url: '/auth/logout', method: 'POST' });
 }
 
 // 修改密码

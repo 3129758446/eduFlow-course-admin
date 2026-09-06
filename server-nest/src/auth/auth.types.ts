@@ -6,6 +6,8 @@ export interface JwtUser {
   username: string;
   role: string;
   name: string;
+  sessionId: string;
+  type: 'access';
 }
 
 export interface RequestWithUser extends Request {

@@ -36,8 +36,13 @@
 | 前端方法 | 方法与路径 | 权限 | 请求 | 返回 |
 | --- | --- | --- | --- | --- |
 | `login` | `POST /api/auth/login` | 无 | `{ username, password }` | `{ token, user }` |
+| `refreshSession` | `POST /api/auth/refresh` | Refresh Cookie | 无 | `{ token, user }` |
+| `logout` | `POST /api/auth/logout` | Refresh Cookie | 无 | `null` |
+| `logoutAll` | `POST /api/auth/logout-all` | 登录 | 无 | `null` |
 | `getCurrentUser` | `GET /api/auth/me` | 登录 | 无 | `User` |
 | `changePassword` | `PATCH /api/auth/password` | 登录 | `{ oldPassword, newPassword }` | `null` |
+
+`token` 是仅用于 API 调用的 15 分钟 access token。登录和刷新接口会通过 `HttpOnly`、`SameSite=Lax` Cookie 下发 refresh token；refresh token 闲置 24 小时失效，且同一会话最长 7 天。前端不得持久化 access token 或 refresh token 到 `localStorage`。
 
 ## 3. Dashboard
 

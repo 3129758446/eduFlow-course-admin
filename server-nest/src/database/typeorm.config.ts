@@ -8,6 +8,7 @@ import { AddCourseCategories1788220800000 } from './migrations/1788220800000-add
 import { AddCourseCategoryCount1788307200000 } from './migrations/1788307200000-add-course-category-count';
 import { NormalizeCourseCategoryUuid1788393600000 } from './migrations/1788393600000-normalize-course-category-uuid';
 import { NormalizeCourseCategoryCreatedAtPrecision1788566400000 } from './migrations/1788566400000-normalize-course-category-created-at-precision';
+import { CreateRefreshTokens1788652800000 } from './migrations/1788652800000-create-refresh-tokens';
 
 // 文件作用：集中生成 TypeORM 和 MySQL 连接配置，并在连接前确保目标数据库存在。
 export interface MysqlConfig {
@@ -49,6 +50,7 @@ export function createTypeOrmOptions(): TypeOrmModuleOptions {
       AddCourseCategoryCount1788307200000,
       NormalizeCourseCategoryUuid1788393600000,
       NormalizeCourseCategoryCreatedAtPrecision1788566400000,
+      CreateRefreshTokens1788652800000,
     ],
     migrationsTableName: 'typeorm_migrations',
     synchronize: false,

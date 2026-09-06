@@ -5,6 +5,7 @@ import { LearningSummaryEntity } from './learning-summary.entity';
 import { PermissionEntity } from './permission.entity';
 import { RolePermissionEntity } from './role-permission.entity';
 import { RoleEntity } from './role.entity';
+import { RefreshTokenEntity } from './refresh-token.entity';
 import { StudentEntity } from './student.entity';
 import { UserEntity } from './user.entity';
 
@@ -19,6 +20,7 @@ export const DATABASE_ENTITIES = [
   RoleEntity,
   PermissionEntity,
   RolePermissionEntity,
+  RefreshTokenEntity,
 ];
 
 export {
@@ -29,6 +31,7 @@ export {
   PermissionEntity,
   RoleEntity,
   RolePermissionEntity,
+  RefreshTokenEntity,
   StudentEntity,
   UserEntity,
 };

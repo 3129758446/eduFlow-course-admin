@@ -6,24 +6,23 @@
 - 登录成功后 setAuth 写入；退出或 401 时 clearAuth 清理
 学习要点：持久化只做存取，不做业务判断，业务逻辑放在 store
 */
-import type { User } from './types';
-
 const TOKEN_KEY = 'course_admin_token';
 const USER_KEY = 'course_admin_user';
+let accessToken: string | null = null;
 
 // 从 localStorage 读取 token
 export function getAuthToken() {
-  return localStorage.getItem(TOKEN_KEY);
+  return accessToken;
 }
 
 // 登录成功后写入 token 与 user 到 localStorage
-export function setAuth(token: string, user: User) {
-  localStorage.setItem(TOKEN_KEY, token);
-  localStorage.setItem(USER_KEY, JSON.stringify(user)); // 保存用户信息
+export function setAuth(token: string) {
+  accessToken = token;
 }
 
 // 清理 localStorage 中的 token 与 user
 export function clearAuth() {
+  accessToken = null;
   localStorage.removeItem(TOKEN_KEY);
   localStorage.removeItem(USER_KEY);
 }

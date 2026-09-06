@@ -1,6 +1,6 @@
 // 文件作用：认证接口控制器，提供登录、获取当前用户和修改当前用户密码接口。
-import { Body, Controller, Get, HttpCode, Patch, Post, Req, UseGuards } from '@nestjs/common';
-import { Request } from 'express';
+import { Body, Controller, Get, HttpCode, Patch, Post, Req, Res, UseGuards } from '@nestjs/common';
+import { Request, Response } from 'express';
 import { ok } from '../common/api-response';
 import { JwtAuthGuard } from './auth.guard';
 import { JwtUser } from './auth.types';
@@ -19,8 +19,35 @@ export class AuthController {
 
   @Post('login')
   @HttpCode(200)
-  async login(@Body() body: LoginDto) {
-    return ok(await this.authService.login(body));
+  async login(@Body() body: LoginDto, @Res({ passthrough: true }) response: Response) {
+    const result = await this.authService.login(body);
+    setRefreshCookie(response, result.refreshToken, result.refreshExpiresAt);
+    return ok({ token: result.token, user: result.user });
+  }
+
+  @Post('refresh')
+  @HttpCode(200)
+  async refresh(@Req() request: Request, @Res({ passthrough: true }) response: Response) {
+    const result = await this.authService.refresh(readCookie(request, REFRESH_COOKIE_NAME) ?? '');
+    setRefreshCookie(response, result.refreshToken, result.refreshExpiresAt);
+    return ok({ token: result.token, user: result.user });
+  }
+
+  @Post('logout')
+  @HttpCode(200)
+  async logout(@Req() request: Request, @Res({ passthrough: true }) response: Response) {
+    await this.authService.logout(readCookie(request, REFRESH_COOKIE_NAME));
+    response.clearCookie(REFRESH_COOKIE_NAME, refreshCookieOptions());
+    return ok(null);
+  }
+
+  @Post('logout-all')
+  @HttpCode(200)
+  @UseGuards(JwtAuthGuard)
+  async logoutAll(@Req() request: AuthedRequest, @Res({ passthrough: true }) response: Response) {
+    await this.authService.logoutAll(request.user.id);
+    response.clearCookie(REFRESH_COOKIE_NAME, refreshCookieOptions());
+    return ok(null);
   }
 
   // 作用：根据 token 获取当前用户信息，刷新页面时恢复用户和权限状态。
@@ -39,4 +66,31 @@ export class AuthController {
     await this.authService.changePassword(req.user.id, body);
     return ok(null, '密码修改成功');
   }
+}
+
+const REFRESH_COOKIE_NAME = 'course_admin_refresh_token';
+
+function refreshCookieOptions() {
+  return {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === 'production',
+    sameSite: 'lax' as const,
+    path: '/api/auth',
+  };
+}
+
+function setRefreshCookie(response: Response, token: string, expiresAt: Date) {
+  response.cookie(REFRESH_COOKIE_NAME, token, {
+    ...refreshCookieOptions(),
+    maxAge: Math.max(0, expiresAt.getTime() - Date.now()),
+  });
+}
+
+function readCookie(request: Request, name: string) {
+  const prefix = `${name}=`;
+  return request.headers.cookie
+    ?.split(';')
+    .map((value) => value.trim())
+    .find((value) => value.startsWith(prefix))
+    ?.slice(prefix.length);
 }
