@@ -5,6 +5,7 @@ import type { ApiEnvelope, LoginResponse } from '../types';
 type RetryableConfig = AxiosRequestConfig & { _retry?: boolean; _skipRefresh?: boolean };
 
 const http = axios.create({ baseURL: '/api', timeout: 10000, withCredentials: true });
+// 多个请求同时 401 时共用同一次刷新，避免同一 Refresh Token 被并发轮换而触发重放保护。
 let refreshPromise: Promise<LoginResponse> | null = null;
 
 http.interceptors.request.use((config) => {
@@ -24,11 +25,13 @@ http.interceptors.response.use(
     const config = error.config as RetryableConfig | undefined;
     const isUnauthorized = error.response?.status === 401 || error.response?.data?.code === 401;
     if (!isUnauthorized) return Promise.reject(new Error(error.response?.data?.msg || error.message || '请求失败'));
+    // 刷新接口本身以及已重试过的请求不能再次刷新，防止无限重试循环。
     if (!config || config._skipRefresh || config._retry) {
       clearAuth();
       return Promise.reject(new Error('登录已失效，请重新登录'));
     }
     try {
+      // Refresh Token 会由浏览器随 Cookie 自动携带；响应中只返回新的 Access Token。
       const session = await refreshAccessToken();
       config._retry = true;
       config.headers = config.headers ?? {};
@@ -48,6 +51,7 @@ export async function request<T>(config: AxiosRequestConfig) {
 
 export async function refreshAccessToken() {
   if (!refreshPromise) {
+    // _skipRefresh 标识该请求失败后直接退出，不能递归地尝试刷新自己。
     refreshPromise = http.request<ApiEnvelope<LoginResponse>>({
       url: '/auth/refresh',
       method: 'POST',

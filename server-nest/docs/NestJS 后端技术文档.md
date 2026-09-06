@@ -11,7 +11,7 @@
 - API 路径不变，例如 `/api/auth/login`、`/api/courses`、`/api/students`、`/api/summary`、`/api/system/*`。
 - 请求参数不变，前端原来的 Axios 调用方式不需要调整。
 - 响应结构不变，成功响应仍是 `{ code, msg, data }`。
-- JWT 鉴权逻辑不变，前端仍通过 `Authorization: Bearer <token>` 访问受保护接口。
+- 受保护接口仍通过 `Authorization: Bearer <accessToken>` 鉴权；登录态改为短期 Access Token 与 HttpOnly Cookie 中 Refresh Token 配合维护。
 - RBAC 权限逻辑不变，仍通过权限码控制菜单、路由、按钮和接口。
 - 数据库业务含义不变，表结构由 TypeORM migration 管理。
 
@@ -28,7 +28,7 @@
 | MySQL 8.0 | 业务数据持久化数据库 |
 | jsonwebtoken | 签发和校验 JWT |
 | bcryptjs | 密码加密和密码校验 |
-| Jest + Supertest | 接口契约测试，验证新 NestJS 后端和旧 Koa 接口兼容 |
+| Jest + Supertest | 接口与会话测试，验证接口契约、令牌刷新和会话失效行为 |
 | Docker | 提供容器化部署文件 |
 
 业务代码默认通过 TypeORM 访问数据库，不再使用旧版集中式 `DatabaseService`。`mysql2` 仍然是必要依赖，但只作为 TypeORM 驱动和启动前确保数据库存在的基础设施能力。
@@ -45,7 +45,7 @@ server-nest
 │  ├─ common                      # 统一响应和异常处理
 │  ├─ config                      # 环境变量加载
 │  ├─ database                    # TypeORM 配置、实体、migration、初始化和日期工具
-│  ├─ auth                        # 登录、JWT 鉴权、接口权限守卫
+│  ├─ auth                        # 双 Token 登录、会话管理、JWT 鉴权、接口权限守卫
 │  ├─ permissions                 # 权限码、角色权限映射、RBAC 计算
 │  ├─ dashboard                   # 工作台统计
 │  ├─ course-categories           # 课程分类字典管理
@@ -73,7 +73,7 @@ server-nest
 学习时建议先看这几类文件：
 
 - 启动流程：`src/main.ts`、`src/app.module.ts`。
-- 数据库流程：`src/database/typeorm.config.ts`、`src/database/entities/`、`src/database/migrations/1788134400000-create-initial-tables.ts`、`src/database/database.init.ts`。
+- 数据库流程：`src/database/typeorm.config.ts`、`src/database/entities/`、`src/database/migrations/`、`src/database/database.init.ts`。
 - 登录鉴权：`src/auth/auth.service.ts`、`src/auth/auth.guard.ts`。
 - 权限控制：`src/auth/permissions.guard.ts`、`src/permissions/permission.service.ts`、`src/permissions/permissions.constants.ts`。
 - 业务模块：任选一个 Controller + Service，例如 `courses`、`course-categories` 或 `students`。
@@ -296,35 +296,21 @@ ok(data, msg = '操作成功')
 
 这种设计的重点是：NestJS 内部可以使用标准异常机制，但对前端暴露的响应结构仍然保持旧 Koa 版本兼容。
 
-## 九、登录与 JWT 鉴权
+## 九、双 Token 登录与 JWT 鉴权
 
-登录入口在 `AuthController`：
+认证由短期 `Access Token` 和长期 `Refresh Token` 协作完成：Access Token 只保存在前端内存，15 分钟过期；Refresh Token 放在 `HttpOnly`、`SameSite=Lax` Cookie 中，不会暴露给前端 JavaScript。MySQL 的 `refresh_tokens` 表只保存 Refresh Token 的 SHA-256 哈希，用于维护服务端会话。
 
-```text
-POST /api/auth/login
-```
+登录入口为 `POST /api/auth/login`。`AuthService.login` 会校验账号密码、计算用户权限、创建会话记录，返回 Access Token、用户信息与权限集合，同时写入 Refresh Token Cookie。
 
-核心逻辑在 `AuthService.login`：
-
-1. 校验用户名和密码是否存在。
-2. 从 `users` 表查询用户。
-3. 使用 `bcrypt.compareSync` 校验密码。
-4. 根据用户角色计算权限集合。
-5. 使用 `jsonwebtoken.sign` 签发 JWT。
-6. 返回 token、用户信息和权限集合。
-
-前端登录后会保存 token，后续接口通过请求头携带：
+前端访问受保护接口时携带：
 
 ```http
-Authorization: Bearer <token>
+Authorization: Bearer <accessToken>
 ```
 
-`JwtAuthGuard` 的职责是：
+当 Access Token 过期，Axios 会通过 `POST /api/auth/refresh` 携带 Cookie 刷新。后端校验会话后签发新的 Access Token 和新的 Refresh Token；旧 Refresh Token 立即作废。这种令牌轮换机制使被重放的旧 Refresh Token 能被识别，并会撤销同一会话族，要求重新登录。
 
-- 解析请求头中的 token。
-- 校验 JWT 是否有效。
-- 把 JWT 中的用户信息挂载到 `request.user`。
-- token 无效时返回 401。
+Refresh Token 同时受两类有效期限制：24 小时未使用即闲置过期，单次会话最长存活 7 天。`POST /api/auth/logout` 撤销当前会话，`POST /api/auth/logout-all` 和修改密码会撤销用户全部会话。`JwtAuthGuard` 除了校验 JWT 签名、类型和过期时间，还会检查关联会话是否仍有效，因此退出后旧 Access Token 也会立即失效。
 
 ## 十、RBAC 动态权限设计
 
@@ -574,6 +560,8 @@ npm test -- --verbose
 - 管理员登录。
 - `/auth/me` 恢复当前用户和权限。
 - 登录失败错误格式。
+- Access Token 的 15 分钟有效期与 Refresh Token Cookie 安全属性。
+- Refresh Token 轮换、旧令牌重放检测及会话撤销后 Access Token 立即失效。
 - 学生账号访问账号管理被拒绝。
 - 工作台、课程、学员列表响应结构。
 - 学习总结 CRUD 和用户隔离。
@@ -613,10 +601,10 @@ npm test -- --verbose
 2. 再看 `src/app.module.ts`，理解 NestJS 模块装配。
 3. 看 `src/database/typeorm.config.ts`、`src/database/entities/` 和 `src/database/migrations/1788134400000-create-initial-tables.ts`，理解 TypeORM 连接、实体和建表方式。
 4. 看 `src/database/database.init.ts` 和 `src/database/recent-learning-activity.service.ts`，理解默认系统数据和近 7 天活跃度为什么分开。
-5. 看 `src/auth/auth.service.ts` 和 `src/auth/auth.guard.ts`，理解登录和 JWT 鉴权。
+5. 看 `src/auth/auth.service.ts`、`src/auth/auth.controller.ts`、`src/auth/auth.guard.ts` 和 `src/database/entities/refresh-token.entity.ts`，理解双 Token 登录、会话轮换和 JWT 鉴权。
 6. 看 `src/auth/permissions.guard.ts` 和 `src/permissions/permission.service.ts`，理解动态权限如何实时生效。
 7. 选一个业务模块，例如 `courses`，按 Controller -> Service -> Repository/QueryBuilder 的顺序读。
-8. 看 `test/api-contract.e2e-spec.ts`、`test/database-init.e2e-spec.ts` 和 `test/migration.e2e-spec.ts`，理解哪些行为是迁移后必须保持不变的契约。
+8. 看 `test/auth-session.e2e-spec.ts`、`test/api-contract.e2e-spec.ts`、`test/database-init.e2e-spec.ts` 和 `test/migration.e2e-spec.ts`，理解会话安全与迁移后必须保持不变的接口契约。
 9. 最后看 `scripts/migrate-sqlite-to-mysql.mjs`，理解数据迁移时如何保持主键和关联关系。
 
 ## 十五、DTO 与 ValidationPipe

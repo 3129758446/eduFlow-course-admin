@@ -11,7 +11,6 @@ services:
     environment:
       - NODE_ENV=production
       - PORT=3000
-      - JWT_SECRET=${JWT_SECRET:-change-me-in-production}
       - SERVE_STATIC=false
       - DATA_ROOT=/app/data
       # 后端容器访问宿主机 MySQL 时，需要使用 Docker Desktop 提供的 host.docker.internal。

@@ -19,6 +19,7 @@ export class JwtAuthGuard implements CanActivate {
 
     try {
       const user = jwt.verify(token, process.env.JWT_SECRET || JWT_SECRET) as JwtUser;
+      // 签名和有效期通过后仍校验会话状态，使退出登录、改密码可立即废弃旧 Access Token。
       if (user.type !== 'access' || !user.sessionId || !(await this.authService.isSessionActive(user.sessionId))) {
         fail(401, '登录会话已失效，请重新登录');
       }

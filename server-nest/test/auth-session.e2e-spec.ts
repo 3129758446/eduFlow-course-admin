@@ -19,6 +19,7 @@ describe('authentication session security', () => {
   beforeAll(async () => {
     process.env.JWT_SECRET = 'session-test-secret';
     process.env.SERVE_STATIC = 'false';
+    process.env.COOKIE_SECURE = 'false';
     process.env.MYSQL_HOST = mysqlHost;
     process.env.MYSQL_PORT = String(mysqlPort);
     process.env.MYSQL_USER = mysqlUser;
@@ -60,6 +61,18 @@ describe('authentication session security', () => {
     expect(refreshCookie).toContain('Path=/api/auth');
     expect(refreshCookie).toContain('HttpOnly');
     expect(refreshCookie).toContain('SameSite=Lax');
+    expect(refreshCookie).not.toContain('Secure');
+  });
+
+  it('adds the Secure attribute when COOKIE_SECURE is explicitly enabled', async () => {
+    process.env.COOKIE_SECURE = 'true';
+    const response = await request(app.getHttpServer())
+      .post('/api/auth/login')
+      .send({ username: 'admin', password: 'admin123' })
+      .expect(200);
+    process.env.COOKIE_SECURE = 'false';
+
+    expect(String(response.headers['set-cookie'])).toContain('Secure');
   });
 
   it('rotates refresh tokens and revokes the active access token on logout', async () => {

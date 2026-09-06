@@ -5,9 +5,7 @@
 !README.md
 !CLAUDE.md
 !项目技术文档.md
-!server-nest/docs/
 !server-nest/docs/Client 与 server-nest 接口协议文档.md
-
 
 
 
@@ -26,3 +24,4 @@ server-nest/.env
 *.sqlite3
 server/data/
 server/database/
+面试问答手册.md

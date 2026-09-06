@@ -4,13 +4,14 @@ export class CreateRefreshTokens1788652800000 implements MigrationInterface {
   name = 'CreateRefreshTokens1788652800000';
 
   async up(queryRunner: QueryRunner): Promise<void> {
+    // 会话表保留轮换链、闲置期限和最大期限；不存储原始 Refresh Token。
     await queryRunner.createTable(new Table({
       name: 'refresh_tokens',
       columns: [
         { name: 'id', type: 'varchar', length: '36', isPrimary: true, isNullable: false },
         { name: 'user_id', type: 'int', isNullable: false },
-        { name: 'family_id', type: 'varchar', length: '36', isNullable: false },
-        { name: 'token_hash', type: 'char', length: '64', isUnique: true, isNullable: false },
+        { name: 'family_id', type: 'varchar', length: '36', isNullable: false }, // 轮换链 ID，用于重放时整链撤销
+        { name: 'token_hash', type: 'char', length: '64', isUnique: true, isNullable: false }, // SHA-256 摘要
         { name: 'status', type: 'varchar', length: '16', default: "'active'", isNullable: false },
         { name: 'created_at', type: 'datetime', default: 'CURRENT_TIMESTAMP', isNullable: false },
         { name: 'last_used_at', type: 'datetime', isNullable: true },
@@ -32,6 +33,7 @@ export class CreateRefreshTokens1788652800000 implements MigrationInterface {
         onDelete: 'CASCADE',
       }));
     }
+    // 退出全部设备和按家族撤销均按这些组合字段查询。
     await queryRunner.createIndex('refresh_tokens', new TableIndex({ name: 'idx_refresh_tokens_user_status', columnNames: ['user_id', 'status'] }));
     await queryRunner.createIndex('refresh_tokens', new TableIndex({ name: 'idx_refresh_tokens_family_status', columnNames: ['family_id', 'status'] }));
   }

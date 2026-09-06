@@ -21,6 +21,7 @@ export class AuthController {
   @HttpCode(200)
   async login(@Body() body: LoginDto, @Res({ passthrough: true }) response: Response) {
     const result = await this.authService.login(body);
+    // Refresh Token 只通过 HttpOnly Cookie 下发，响应体只暴露短期 Access Token。
     setRefreshCookie(response, result.refreshToken, result.refreshExpiresAt);
     return ok({ token: result.token, user: result.user });
   }
@@ -29,6 +30,7 @@ export class AuthController {
   @HttpCode(200)
   async refresh(@Req() request: Request, @Res({ passthrough: true }) response: Response) {
     const result = await this.authService.refresh(readCookie(request, REFRESH_COOKIE_NAME) ?? '');
+    // 服务端轮换 Refresh Token 后必须覆盖 Cookie，旧 Token 不再可用。
     setRefreshCookie(response, result.refreshToken, result.refreshExpiresAt);
     return ok({ token: result.token, user: result.user });
   }
@@ -73,15 +75,24 @@ const REFRESH_COOKIE_NAME = 'course_admin_refresh_token';
 function refreshCookieOptions() {
   return {
     httpOnly: true,
-    secure: process.env.NODE_ENV === 'production',
+    secure: isRefreshCookieSecure(),
     sameSite: 'lax' as const,
     path: '/api/auth',
   };
 }
 
+function isRefreshCookieSecure() {
+  // 本地 HTTP 开发显式设为 false；未配置时生产环境默认开启 Secure。
+  const configured = process.env.COOKIE_SECURE?.trim().toLowerCase();
+  return configured === undefined || configured === ''
+    ? process.env.NODE_ENV === 'production'
+    : configured === 'true';
+}
+
 function setRefreshCookie(response: Response, token: string, expiresAt: Date) {
   response.cookie(REFRESH_COOKIE_NAME, token, {
     ...refreshCookieOptions(),
+    // Cookie 生命周期与服务端闲置过期时间对齐；服务端会话表仍是最终校验依据。
     maxAge: Math.max(0, expiresAt.getTime() - Date.now()),
   });
 }
